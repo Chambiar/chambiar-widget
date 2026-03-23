@@ -16,7 +16,6 @@ interface Question {
   id: string;
   heading: string;
   options: { value: string; label: string }[];
-  signal: string;
   allowOther?: boolean;
 }
 
@@ -27,29 +26,28 @@ const questions: Question[] = [
     options: [
       { value: "founder", label: "Executive / Founder" },
       { value: "manager", label: "Manager / Team Lead" },
-      { value: "ic", label: "Individual Contributor" },
       { value: "product_eng", label: "Product / Engineering" },
       { value: "sales", label: "Sales / Marketing" },
+      { value: "ic", label: "Individual Contributor (IC)" },
       { value: "ops", label: "Operations / Admin" },
       { value: "consultant", label: "Consultant / Independent" },
       { value: "other", label: "Other" },
     ],
-    signal: "role",
     allowOther: true,
   },
   {
-    id: "work_structure",
-    heading: "How is your time typically structured?",
+    id: "tools",
+    heading: "How many tools do you use daily?",
     options: [
-      { value: "independent", label: "Mostly independent" },
-      { value: "mix", label: "Mix of meetings and individual work" },
-      { value: "meetings", label: "Mostly meetings and coordination" },
+      { value: "1-3", label: "1–3" },
+      { value: "4-6", label: "4–6" },
+      { value: "7-10", label: "7–10" },
+      { value: "10+", label: "10+" },
     ],
-    signal: "work_structure",
   },
   {
-    id: "meeting_load",
-    heading: "How many hours did you spend in meetings last week?",
+    id: "meetings",
+    heading: "How many hours per week do you spend in meetings?",
     options: [
       { value: "lt5", label: "Less than 5 hours" },
       { value: "5-10", label: "5–10 hours" },
@@ -57,138 +55,59 @@ const questions: Question[] = [
       { value: "15-20", label: "15–20 hours" },
       { value: "20+", label: "20+ hours" },
     ],
-    signal: "meeting_load",
   },
   {
-    id: "focus_fragmentation",
-    heading: "Did meetings interrupt your focus?",
+    id: "interruptions",
+    heading: "How often are you interrupted?",
     options: [
       { value: "rarely", label: "Rarely" },
       { value: "sometimes", label: "Sometimes" },
       { value: "often", label: "Often" },
       { value: "constantly", label: "Constantly" },
     ],
-    signal: "focus_fragmentation",
   },
   {
-    id: "email_backlog",
-    heading: "How many emails are waiting for your response?",
-    options: [
-      { value: "0-10", label: "0–10" },
-      { value: "10-30", label: "10–30" },
-      { value: "30-60", label: "30–60" },
-      { value: "60+", label: "60+" },
-    ],
-    signal: "email_backlog",
-  },
-  {
-    id: "notification_pressure",
-    heading: "How often do notifications interrupt your work?",
+    id: "coordination",
+    heading: "How often do you chase updates or follow-ups?",
     options: [
       { value: "rarely", label: "Rarely" },
       { value: "sometimes", label: "Sometimes" },
       { value: "often", label: "Often" },
       { value: "constantly", label: "Constantly" },
     ],
-    signal: "notification_pressure",
+  },
+  {
+    id: "night_work",
+    heading: "How many hours per week do you work outside normal hours?",
+    options: [
+      { value: "0", label: "0" },
+      { value: "1-3", label: "1–3 hours" },
+      { value: "4-6", label: "4–6 hours" },
+      { value: "7-10", label: "7–10 hours" },
+      { value: "10+", label: "10+ hours" },
+    ],
+  },
+  {
+    id: "admin_ratio",
+    heading: "How much of your work is focused vs admin?",
+    options: [
+      { value: "mostly_focused", label: "Mostly focused work" },
+      { value: "half", label: "About half and half" },
+      { value: "mostly_admin", label: "Mostly admin" },
+    ],
+  },
+  {
+    id: "visibility",
+    heading: "How often is your work recognized or visible?",
+    options: [
+      { value: "regularly", label: "Regularly" },
+      { value: "sometimes", label: "Sometimes" },
+      { value: "rarely", label: "Rarely" },
+    ],
   },
 ];
 
 type Answers = Record<string, string>;
-
-function convertAnswersToMetrics(answers: Answers): WidgetMetricResult[] {
-  const metrics: WidgetMetricResult[] = [];
-
-  // Meeting load → hoursWasted
-  const meetingMap: Record<string, number> = {
-    lt5: 3,
-    "5-10": 7,
-    "10-15": 12,
-    "15-20": 17,
-    "20+": 22,
-  };
-  const meetingVal = meetingMap[answers.meeting_load] ?? 7;
-  metrics.push({
-    id: "hoursWasted",
-    value: meetingVal,
-    trend: "neutral",
-    status: meetingVal >= 15 ? "bad" : "warning",
-  });
-
-  // Focus fragmentation → collaborationBottleneck
-  const focusMap: Record<string, number> = {
-    rarely: 1,
-    sometimes: 3,
-    often: 6,
-    constantly: 9,
-  };
-  const focusVal = focusMap[answers.focus_fragmentation] ?? 3;
-  metrics.push({
-    id: "collaborationBottleneck",
-    value: focusVal,
-    trend: "neutral",
-    status: focusVal >= 6 ? "bad" : focusVal >= 3 ? "warning" : "good",
-  });
-
-  // Email backlog → emailDebt
-  const emailMap: Record<string, number> = {
-    "0-10": 5,
-    "10-30": 20,
-    "30-60": 45,
-    "60+": 80,
-  };
-  const emailVal = emailMap[answers.email_backlog] ?? 20;
-  metrics.push({
-    id: "emailDebt",
-    value: emailVal,
-    trend: "neutral",
-    status: emailVal >= 45 ? "bad" : emailVal >= 20 ? "warning" : "good",
-  });
-
-  // Notification pressure → notificationOverload
-  const notifMap: Record<string, number> = {
-    rarely: 30,
-    sometimes: 80,
-    often: 150,
-    constantly: 300,
-  };
-  const notifVal = notifMap[answers.notification_pressure] ?? 80;
-  metrics.push({
-    id: "notificationOverload",
-    value: notifVal,
-    trend: "neutral",
-    status: notifVal >= 150 ? "bad" : notifVal >= 80 ? "warning" : "good",
-  });
-
-  // Work structure → workStructure
-  const structureMap: Record<string, number> = {
-    independent: 1,
-    mix: 5,
-    meetings: 9,
-  };
-  const structureVal = structureMap[answers.work_structure] ?? 5;
-  metrics.push({
-    id: "workStructure",
-    value: structureVal,
-    trend: "neutral",
-    status: structureVal >= 7 ? "bad" : structureVal >= 4 ? "warning" : "good",
-  });
-
-  return metrics;
-}
-
-function calculateScore(metrics: WidgetMetricResult[]): number {
-  if (metrics.length === 0) return 50;
-  const scores = metrics.map((m) => {
-    switch (m.status) {
-      case "good": return 100;
-      case "warning": return 50;
-      case "bad": return 20;
-      default: return 50;
-    }
-  });
-  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-}
 
 export default function WidgetFormDiagnostic({
   onComplete,
@@ -208,11 +127,9 @@ export default function WidgetFormDiagnostic({
 
   const goToNext = () => {
     if (isLastQuestion) {
-      const metrics = convertAnswersToMetrics(answers);
-      const score = calculateScore(metrics);
       const role = answers.role || "other";
       const workSystem = calculateWorkSystem(answers, role);
-      onComplete(metrics, workSystem.oei_score, workSystem);
+      onComplete([], workSystem.oei_score, workSystem);
     } else {
       setCurrentQuestion((prev) => prev + 1);
     }

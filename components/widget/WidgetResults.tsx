@@ -3,25 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   Clock,
-  Moon,
-  Inbox,
-  Zap,
-  FileText,
-  Bell,
-  Video,
-  DollarSign,
-  LayoutGrid,
-  ExternalLink,
-  ArrowLeft,
   Loader2,
-  TrendingDown,
-  TrendingUp,
-  Minus,
-  Link2,
+  ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WidgetSession } from "@/app/page";
-import type { MetricId, WidgetMetricResult } from "@/lib/widget/types";
+import type { WidgetMetricResult } from "@/lib/widget/types";
+import type { BreakdownCategory } from "@/lib/workSystemCalculator";
 
 interface WidgetResultsProps {
   session: WidgetSession;
@@ -31,142 +20,13 @@ interface WidgetResultsProps {
   onConnectApps?: () => void;
 }
 
-const metricConfig: Record<
-  MetricId,
-  {
-    label: string;
-    icon: typeof Clock;
-    format: (v: number) => string;
-    shareText: (v: number) => string;
-  }
-> = {
-  hoursWasted: {
-    label: "Hours Wasted",
-    icon: Clock,
-    format: (v) => `${v.toFixed(1)} hrs`,
-    shareText: (v) => `${v.toFixed(1)} hours in meetings that could've been emails`,
-  },
-  afterHoursMeetings: {
-    label: "After-Hours Meetings",
-    icon: Moon,
-    format: (v) => `${v}`,
-    shareText: (v) => `${v} meetings scheduled after 6pm`,
-  },
-  emailDebt: {
-    label: "Email Debt",
-    icon: Inbox,
-    format: (v) => `${v}`,
-    shareText: (v) => `${v} emails over 7 days old`,
-  },
-  responseTime: {
-    label: "Avg Response Time",
-    icon: Zap,
-    format: (v) => `${v.toFixed(1)} hrs`,
-    shareText: (v) => `${v.toFixed(1)} hour average reply time`,
-  },
-  collaborationBottleneck: {
-    label: "Stuck Documents",
-    icon: FileText,
-    format: (v) => `${v}`,
-    shareText: (v) => `${v} docs waiting on others`,
-  },
-  notificationOverload: {
-    label: "Daily Notifications",
-    icon: Bell,
-    format: (v) => `${v}`,
-    shareText: (v) => `${v} Slack messages yesterday`,
-  },
-  zoomFatigue: {
-    label: "Zoom Fatigue",
-    icon: Video,
-    format: (v) => `${v.toFixed(1)} hrs`,
-    shareText: (v) => `${v.toFixed(1)} hours on video calls`,
-  },
-  expenseBlindSpots: {
-    label: "Expense Blind Spots",
-    icon: DollarSign,
-    format: (v) => `$${v.toLocaleString()}`,
-    shareText: (v) => `$${v.toLocaleString()}/mo in questionable subscriptions`,
-  },
-  workStructure: {
-    label: "Work Structure",
-    icon: LayoutGrid,
-    format: (v) => v >= 7 ? "Coordination-heavy" : v >= 4 ? "Mixed" : "Independent",
-    shareText: (v) => v >= 7 ? "Mostly meetings and coordination" : v >= 4 ? "Mix of meetings and solo work" : "Mostly independent work",
-  },
-};
-
 function generateMockMetrics(
   integrations: WidgetSession["integrations"]
 ): WidgetMetricResult[] {
   const results: WidgetMetricResult[] = [];
-
   if (integrations.googleCalendar) {
-    results.push({
-      id: "hoursWasted",
-      value: 8 + Math.random() * 10,
-      trend: "up",
-      status: "bad",
-    });
-    results.push({
-      id: "afterHoursMeetings",
-      value: Math.floor(2 + Math.random() * 6),
-      trend: "up",
-      status: Math.random() > 0.5 ? "warning" : "bad",
-    });
+    results.push({ id: "hoursWasted", value: 8 + Math.random() * 10, trend: "up", status: "bad" });
   }
-
-  if (integrations.gmail) {
-    results.push({
-      id: "emailDebt",
-      value: Math.floor(50 + Math.random() * 150),
-      trend: "up",
-      status: "bad",
-    });
-    results.push({
-      id: "responseTime",
-      value: 2 + Math.random() * 8,
-      trend: "neutral",
-      status: Math.random() > 0.5 ? "warning" : "good",
-    });
-  }
-
-  if (integrations.googleDocs || integrations.googleSheets) {
-    results.push({
-      id: "collaborationBottleneck",
-      value: Math.floor(3 + Math.random() * 10),
-      trend: "up",
-      status: "warning",
-    });
-  }
-
-  if (integrations.slack) {
-    results.push({
-      id: "notificationOverload",
-      value: Math.floor(150 + Math.random() * 400),
-      trend: "up",
-      status: "bad",
-    });
-  }
-
-  if (integrations.zoom) {
-    results.push({
-      id: "zoomFatigue",
-      value: 4 + Math.random() * 8,
-      trend: "up",
-      status: Math.random() > 0.5 ? "warning" : "bad",
-    });
-  }
-
-  if (integrations.xero) {
-    results.push({
-      id: "expenseBlindSpots",
-      value: Math.floor(200 + Math.random() * 1000),
-      trend: "neutral",
-      status: "warning",
-    });
-  }
-
   return results;
 }
 
@@ -201,32 +61,70 @@ function getScoreLabel(score: number): string {
   return "Critical";
 }
 
-function getScoreSubline(score: number): string {
-  if (score >= 86) return "Your work system is running efficiently, with minimal friction between effort and output.";
-  if (score >= 71) return "Your work system is operating well, with some early signs of coordination overhead.";
-  if (score >= 51) return "Your work system is functional, but coordination and communication are slowing execution.";
-  if (score >= 31) return "A large portion of your week is spent managing work rather than making progress.";
-  return "Your work system is consuming more time coordinating work than completing it.";
+function getHeroInterpretation(score: number): string {
+  if (score >= 71) return "Your work system is mostly efficient, with some time lost to coordination overhead.";
+  if (score >= 51) return "A significant portion of your week is going to coordination rather than execution.";
+  if (score >= 31) return "Most of your week is being spent managing work, not completing it.";
+  return "Your week is dominated by coordination. Very little time remains for focused work.";
 }
 
-function getMariaInsight(score: number): string {
-  if (score >= 86) return "Your systems are well-tuned. Small adjustments to meeting cadence or notification habits could unlock even more focused time.";
-  if (score >= 71) return "You&apos;re in good shape overall, but coordination overhead is starting to creep in. Watch for meeting bloat and context-switching patterns.";
-  if (score >= 51) return "Your work system is functional but inefficient. A significant portion of your week is lost to coordination, interruptions, and reactive work rather than execution.";
-  if (score >= 31) return "Your work system is creating real drag. Meeting load, notification pressure, and coordination overhead are consuming time that should go toward meaningful output.";
-  return "Your work system needs immediate attention. The majority of your time is being absorbed by coordination, interruptions, and after-hours spillover — leaving very little room for focused work.";
+function getMariaInsight(score: number, visibility: string): {
+  diagnosis: string;
+  consequence: string;
+  emotional: string;
+} {
+  const visLine = visibility === "low"
+    ? " Much of that effort is not visible to others."
+    : visibility === "moderate"
+    ? " Only some of that effort is visible to others."
+    : "";
+
+  if (score >= 71) {
+    return {
+      diagnosis: "Your work system is running with relatively low coordination overhead. Meetings and interruptions consume a manageable portion of your week.",
+      consequence: `Most of your time is available for focused execution.${visLine}`,
+      emotional: "Your week likely feels structured and productive.",
+    };
+  }
+  if (score >= 51) {
+    return {
+      diagnosis: "Your work system is losing a significant portion of the week to meetings, coordination, and context switching.",
+      consequence: `The time left for focused execution is being compressed into smaller and smaller windows.${visLine}`,
+      emotional: "This is why your week feels busy but unproductive.",
+    };
+  }
+  if (score >= 31) {
+    return {
+      diagnosis: "Your work system is dominated by coordination and interruptions. Meetings, tool switching, and reactive communication are consuming the majority of your available time.",
+      consequence: `Most of your available time is being consumed before meaningful work can begin, leaving limited capacity for focused execution.${visLine}`,
+      emotional: "This is why your week feels fragmented.",
+    };
+  }
+  return {
+    diagnosis: "Your work system is absorbing nearly all available time into coordination, meetings, and interruptions. There is very little room left for the work that actually matters.",
+    consequence: `Execution capacity has been reduced to a fraction of your week. The gap between effort and output is significant.${visLine}`,
+    emotional: "This is why nothing feels like enough, even when you\u2019re always on.",
+  };
 }
+
+const StatusIndicator = ({ status }: { status: "good" | "warning" | "bad" }) => {
+  const colors = {
+    good: "bg-emerald-400/50 border-emerald-400",
+    warning: "bg-yellow-400/50 border-yellow-400",
+    bad: "bg-rose-400/50 border-rose-400",
+  };
+  return <div className={`w-2.5 h-2.5 rounded-full border ${colors[status]}`} />;
+};
 
 export default function WidgetResults({
   session,
   onShare,
-  onBack,
+  onBack: _onBack,
   updateSession,
-  onConnectApps,
 }: WidgetResultsProps) {
-  const isFormBased = session.dataSource === "form";
+  void _onBack;
   const [isAnalyzing, setIsAnalyzing] = useState(true);
-  const [metrics, setMetrics] = useState<WidgetMetricResult[]>([]);
+  const [, setMetrics] = useState<WidgetMetricResult[]>([]);
   const [score, setScore] = useState(0);
 
   useEffect(() => {
@@ -237,12 +135,16 @@ export default function WidgetResults({
       return;
     }
 
+    if (session.workSystem) {
+      setScore(session.overallScore || session.workSystem.oei_score);
+      setIsAnalyzing(false);
+      return;
+    }
+
     const analyze = async () => {
       await new Promise((resolve) => setTimeout(resolve, 2500));
-
       const generatedMetrics = generateMockMetrics(session.integrations);
       const calculatedScore = calculateScore(generatedMetrics);
-
       setMetrics(generatedMetrics);
       setScore(calculatedScore);
       updateSession({ metrics: generatedMetrics, overallScore: calculatedScore });
@@ -262,16 +164,14 @@ export default function WidgetResults({
             <Clock className="h-8 w-8 text-[#3A628F]" />
           </div>
         </div>
-
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-[#103257]">
             Maria is analyzing your work patterns...
           </h2>
           <p className="text-[#3A628F]">
-            Crunching data from {Object.values(session.integrations).filter(Boolean).length} connected apps
+            Building your work system snapshot
           </p>
         </div>
-
         <div className="flex items-center justify-center gap-2 text-sm text-[#94A9C2]">
           <Loader2 className="h-4 w-4 animate-spin" />
           This usually takes a few seconds
@@ -280,182 +180,265 @@ export default function WidgetResults({
     );
   }
 
-  const TrendIcon = ({ trend }: { trend?: string }) => {
-    if (trend === "up") return <TrendingUp className="h-3 w-3 text-[#103257]" />;
-    if (trend === "down") return <TrendingDown className="h-3 w-3 text-[#3A628F]" />;
-    return <Minus className="h-3 w-3 text-[#94A9C2]" />;
-  };
+  const ws = session.workSystem;
+  const oeiScore = ws?.oei_score ?? score;
+  const hoursLost = ws?.hours_lost ?? 0;
+  const executionTime = ws?.execution_time ?? (40 - hoursLost);
+  const focusedWork = ws?.focused_work ?? 0;
+  const strategicWork = ws?.strategic_work ?? 0;
+  const nightWork = ws?.night_work ?? 0;
+  const timeBreakdown = ws?.time_breakdown ?? { meetings: 0, coordination: 0, execution: 40 };
+  const visibility = ws?.visibility ?? "moderate";
+  const weeklyCost = ws?.estimated_cost ?? 0;
+  const yearlyCost = weeklyCost * 52;
+  const breakdownCategories = ws?.breakdown_categories ?? [];
+  const insight = getMariaInsight(oeiScore, visibility);
+  const heroInterpretation = getHeroInterpretation(oeiScore);
 
-  const StatusDot = ({ status }: { status: string }) => {
-    const colors = {
-      good: "bg-emerald-400/50 border-emerald-400",
-      warning: "bg-yellow-400/50 border-yellow-400",
-      bad: "bg-rose-400/50 border-rose-400",
-    };
-    return <div className={`w-2.5 h-2.5 rounded-full border ${colors[status as keyof typeof colors] || "bg-gray-300 border-gray-300"}`} />;
-  };
+  const totalBarHours = timeBreakdown.meetings + timeBreakdown.coordination + timeBreakdown.execution;
+  const meetingPct = totalBarHours > 0 ? (timeBreakdown.meetings / totalBarHours) * 100 : 0;
+  const coordPct = totalBarHours > 0 ? (timeBreakdown.coordination / totalBarHours) * 100 : 0;
+  const execPct = totalBarHours > 0 ? (timeBreakdown.execution / totalBarHours) * 100 : 0;
 
   return (
     <div className="space-y-5">
-      {/* Receipt-style Results Card */}
       <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-        {/* Receipt Header */}
-        <div className="bg-white p-4 text-center">
-          <div className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">Work System Snapshot</div>
-          <div className="text-base text-[#94A9C2] mt-[10px]">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          <p className="text-sm text-[#3A628F] max-w-md mx-auto my-[20px]">{getScoreSubline(score)}</p>
+        <div className="p-6">
 
-          {/* Metrics */}
-          <div className="space-y-3 mt-5 text-left">
-            {metrics.map((metric, index) => {
-              const config = metricConfig[metric.id];
-              const Icon = config.icon;
-              const isHero = metric.id === "hoursWasted";
+          {/* 1. HEADER + HERO INTERPRETATION */}
+          <div className="text-center py-[20px]">
+            <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
+              Your Work System Snapshot
+            </h1>
+            <p className="text-sm text-[#103257] font-medium max-w-md mx-auto mt-4">
+              {heroInterpretation}
+            </p>
+          </div>
 
-              const statusStyles = {
-                good: "bg-emerald-50/60 border-emerald-200 text-emerald-700",
-                warning: "bg-yellow-50/60 border-yellow-200 text-yellow-600",
-                bad: "bg-rose-50/60 border-rose-200 text-rose-700",
-              };
-              const statusClass = statusStyles[metric.status as keyof typeof statusStyles] || "bg-[#f8fafc] border-[#e2e8f0] text-[#103257]";
+          <div className="border-t border-dashed border-[#e2e8f0]" />
 
-              if (isHero) {
-                return (
-                  <div
-                    key={metric.id}
-                    className={`flex items-center justify-between p-5 rounded-xl border-2 hover:-translate-y-1 hover:shadow-md transition-all cursor-default ${statusClass}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-7 w-7" />
-                      <span className="text-lg font-semibold">{config.label}</span>
-                    </div>
-                    <span className="text-3xl font-bold font-mono">
-                      {config.format(metric.value)}
-                    </span>
+          {/* 2. HERO METRIC — Time lost to coordination */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Coordination time lost this week
+            </div>
+            <div className="text-5xl font-bold font-mono text-[#103257]">
+              {hoursLost} <span className="text-2xl font-normal">hours</span>
+            </div>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 3. WORK WEEK BREAKDOWN */}
+          <div className="py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
+              Where your week is going
+            </div>
+            <div className="flex h-8 rounded-lg overflow-hidden border border-[#e2e8f0]">
+              <div
+                className="bg-[#103257] transition-all"
+                style={{ width: `${meetingPct}%` }}
+                title={`Meetings: ${timeBreakdown.meetings} hrs`}
+              />
+              <div
+                className="bg-[#3A628F] transition-all"
+                style={{ width: `${coordPct}%` }}
+                title={`Coordination: ${timeBreakdown.coordination} hrs`}
+              />
+              <div
+                className="bg-[#D9E7FF] transition-all"
+                style={{ width: `${execPct}%` }}
+                title={`Execution: ${timeBreakdown.execution} hrs`}
+              />
+            </div>
+            <div className="flex justify-between mt-3 text-sm text-[#3A628F]">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-[#103257]" />
+                Meetings — {timeBreakdown.meetings} hrs
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-[#3A628F]" />
+                Coordination — {timeBreakdown.coordination} hrs
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm bg-[#D9E7FF]" />
+                Execution — {timeBreakdown.execution} hrs
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 4. EXECUTION CAPACITY */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Time left for actual work
+            </div>
+            <div className="text-4xl font-bold font-mono text-[#103257]">
+              {executionTime} <span className="text-xl font-normal">hours</span>
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">Out of your 40-hour week</p>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 5. FOCUSED WORK */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Focused work (deep execution time)
+            </div>
+            <div className="text-4xl font-bold font-mono text-[#103257]">
+              {focusedWork} <span className="text-xl font-normal">hours</span>
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">After removing admin from execution time</p>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 6. STRATEGIC WORK */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Strategic work that gets noticed
+            </div>
+            <div className="text-4xl font-bold font-mono text-[#103257]">
+              {strategicWork} <span className="text-xl font-normal">hours</span>
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">Work that gets finished, shipped, and recognized</p>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 7. VISIBILITY */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Work that gets recognized
+            </div>
+            <div className="text-3xl font-bold text-[#103257] capitalize">
+              {visibility}
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">How much of your work is visible and valued</p>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 8. NIGHT WORK */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              After-hours overflow
+            </div>
+            <div className="text-3xl font-bold font-mono text-[#103257]">
+              {nightWork} <span className="text-xl font-normal">hours</span>
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">Work happening outside normal hours</p>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 9. COST */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              Weekly cost of lost time
+            </div>
+            <div className="text-4xl font-bold font-mono text-[#103257]">
+              ${weeklyCost.toLocaleString()}
+            </div>
+            <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
+            {yearlyCost > 0 && (
+              <p className="text-xs text-[#3A628F] mt-1">
+                &asymp; ${yearlyCost.toLocaleString()} per year
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 10. OEI SCORE */}
+          <div className="text-center py-[20px]">
+            <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+              OEI Score
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <span
+                className="text-5xl font-bold font-mono"
+                style={{ color: getScoreColor(oeiScore) }}
+              >
+                {oeiScore}
+              </span>
+              <span className="text-lg text-[#3A628F]">—</span>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium border ${getScoreBadgeClass(oeiScore)}`}
+              >
+                {getScoreLabel(oeiScore)}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-t border-dashed border-[#e2e8f0]" />
+
+          {/* 11. BREAKDOWN SECTION */}
+          {breakdownCategories.length > 0 && (
+            <div className="py-[20px] space-y-5">
+              {breakdownCategories.map((category: BreakdownCategory) => (
+                <div key={category.title}>
+                  <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
+                    {category.title}
                   </div>
-                );
-              }
-
-              return (
-                <div
-                  key={metric.id}
-                  className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-[#e2e8f0] hover:-translate-y-1 hover:shadow-md transition-all cursor-default"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-[#3A628F]" />
-                    <span className="text-sm text-[#103257]">{config.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold font-mono text-[#103257]">
-                      {config.format(metric.value)}
-                    </span>
-                    <StatusDot status={metric.status} />
+                  <div className="space-y-2">
+                    {category.metrics.map((metric) => (
+                      <div
+                        key={metric.label}
+                        className="flex items-center justify-between p-3 rounded-lg border border-[#e2e8f0]"
+                      >
+                        <span className="text-sm text-[#103257]">{metric.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium font-mono text-[#103257]">
+                            {metric.value}
+                          </span>
+                          <StatusIndicator status={metric.status} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-[#e2e8f0] my-5" />
-
-          {/* Total Score */}
-          <div className="text-center pb-2">
-            <div className="text-xs text-[#94A9C2] uppercase tracking-wider mb-2">Total Score</div>
-            <div
-              className="text-5xl font-bold font-mono mb-2"
-              style={{ color: getScoreColor(score) }}
-            >
-              {score}
+              ))}
             </div>
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${getScoreBadgeClass(score)}`}
-            >
-              {getScoreLabel(score)}
-            </span>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Maria&apos;s insight */}
-      <div className="p-6 bg-white rounded-xl border-2 border-[#e2e8f0]">
-        {session.workSystem && session.assessmentScope === "team" && session.teamSize ? (
-          <>
-            <div className="grid grid-cols-2 gap-4 mb-5 pb-5 border-b border-[#e2e8f0]">
-              <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Time Lost / Person</div>
-                <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost} hrs</div>
-                <div className="text-xs text-rose-500 mt-1">per week</div>
-              </div>
-              <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Team Total Hours</div>
-                <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost * session.teamSize} hrs</div>
-                <div className="text-xs text-rose-500 mt-1">{session.teamSize} people × {session.workSystem.hours_lost} hrs</div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mb-5 pb-5 border-b border-[#e2e8f0]">
-              <div>
-                <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Execution Time / Person</div>
-                <div className="text-2xl font-bold font-mono text-[#103257]">{40 - session.workSystem.hours_lost} hrs</div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Est. Weekly Team Cost</div>
-                <div className="text-2xl font-bold font-mono text-[#103257]">${(session.workSystem.estimated_cost * session.teamSize).toLocaleString()}</div>
-              </div>
-            </div>
-            <p className="text-xs text-[#3A628F]/50 text-right -mt-4 mb-4">Based on average US compensation for your role</p>
-          </>
-        ) : session.workSystem ? (
-          <>
-            <div className="grid grid-cols-2 gap-4 mb-5 pb-5 border-b border-[#e2e8f0]">
-              <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Time Lost</div>
-                <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost} hrs</div>
-                <div className="text-xs text-rose-500 mt-1">per week</div>
-              </div>
-              <div className="p-4 bg-emerald-50/60 border-2 border-emerald-200 rounded-xl text-center">
-                <div className="text-xs text-emerald-600 uppercase tracking-wider mb-1">Execution Time</div>
-                <div className="text-3xl font-bold font-mono text-emerald-700">{40 - session.workSystem.hours_lost} hrs</div>
-                <div className="text-xs text-emerald-500 mt-1">remaining / week</div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mb-5 pb-5 border-b border-[#e2e8f0]">
-              <div>
-                <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">OEI Score</div>
-                <div className="text-2xl font-bold font-mono" style={{ color: getScoreColor(score) }}>{score}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Est. Weekly Cost</div>
-                <div className="text-2xl font-bold font-mono text-[#103257]">${session.workSystem.estimated_cost.toLocaleString()}</div>
-              </div>
-            </div>
-            <p className="text-xs text-[#3A628F]/50 text-right -mt-4 mb-4">Based on average US compensation for your role</p>
-          </>
-        ) : null}
-
+      {/* 12. MARIA INSIGHT */}
+      <div className="p-6 bg-white rounded-2xl border-2 border-[#e2e8f0]">
         <div className="flex items-start gap-4">
           <div className="w-8 h-8 bg-[#103257] rounded-full flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">M</span>
           </div>
           <div>
-            <h4 className="font-semibold text-[#103257] mb-2">Maria&apos;s Insight</h4>
-            <p className="text-sm text-[#3A628F] leading-relaxed">
-              {getMariaInsight(score)}
-            </p>
+            <h4 className="font-semibold text-[#103257] mb-3">Maria&apos;s Insight</h4>
+            <ul className="space-y-2 text-sm text-[#3A628F] leading-relaxed list-disc pl-4">
+              <li>{insight.diagnosis}</li>
+              <li>{insight.consequence}</li>
+              <li className="text-[#103257] font-medium italic">{insight.emotional}</li>
+            </ul>
           </div>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-2">
-        <Button onClick={onBack} variant="outline">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+      {/* 13. CTA */}
+      <div className="flex flex-col gap-3 pt-2">
+        <Button
+          onClick={onShare}
+          className="w-full bg-[#103257] hover:bg-[#1a4a7a] text-white py-3"
+        >
+          See how Maria fixes this
+          <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
-
-        <Button onClick={onShare} variant="outline">
+        <Button
+          onClick={onShare}
+          variant="outline"
+          className="w-full"
+        >
           <ExternalLink className="h-4 w-4 mr-2" />
-          Share Results
+          Share your work system snapshot
         </Button>
       </div>
     </div>

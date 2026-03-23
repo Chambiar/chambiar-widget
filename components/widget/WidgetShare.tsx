@@ -9,18 +9,7 @@ import {
   ArrowLeft,
   Loader2,
   X,
-  Clock,
-  Moon,
-  Inbox,
-  Zap,
   FileText,
-  Bell,
-  Video,
-  DollarSign,
-  LayoutGrid,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,77 +22,13 @@ import {
 } from "@/components/ui/dialog";
 import type { WidgetSession } from "@/app/page";
 import type { MetricId } from "@/lib/widget/types";
+import type { BreakdownCategory } from "@/lib/workSystemCalculator";
 
 interface WidgetShareProps {
   session: WidgetSession;
   updateSession: (updates: Partial<WidgetSession>) => void;
   onBack: () => void;
 }
-
-const metricConfig: Record<
-  MetricId,
-  {
-    label: string;
-    icon: typeof Clock;
-    color: string;
-    format: (v: number) => string;
-  }
-> = {
-  hoursWasted: {
-    label: "Hours Wasted",
-    icon: Clock,
-    color: "#ef4444",
-    format: (v) => `${v.toFixed(1)} hrs`,
-  },
-  afterHoursMeetings: {
-    label: "After-Hours",
-    icon: Moon,
-    color: "#8b5cf6",
-    format: (v) => `${v}`,
-  },
-  emailDebt: {
-    label: "Email Debt",
-    icon: Inbox,
-    color: "#f97316",
-    format: (v) => `${v}`,
-  },
-  responseTime: {
-    label: "Response Time",
-    icon: Zap,
-    color: "#eab308",
-    format: (v) => `${v.toFixed(1)} hrs`,
-  },
-  collaborationBottleneck: {
-    label: "Stuck Docs",
-    icon: FileText,
-    color: "#14b8a6",
-    format: (v) => `${v}`,
-  },
-  notificationOverload: {
-    label: "Notifications",
-    icon: Bell,
-    color: "#ec4899",
-    format: (v) => `${v}`,
-  },
-  zoomFatigue: {
-    label: "Zoom Fatigue",
-    icon: Video,
-    color: "#2D8CFF",
-    format: (v) => `${v.toFixed(1)} hrs`,
-  },
-  expenseBlindSpots: {
-    label: "Blind Spots",
-    icon: DollarSign,
-    color: "#10b981",
-    format: (v) => `$${v.toLocaleString()}`,
-  },
-  workStructure: {
-    label: "Work Structure",
-    icon: LayoutGrid,
-    color: "#3A628F",
-    format: (v) => v >= 7 ? "Coordination-heavy" : v >= 4 ? "Mixed" : "Independent",
-  },
-};
 
 function getScoreColor(score: number): string {
   if (score >= 70) return "#047857";
@@ -123,23 +48,72 @@ function getScoreLabel(score: number): string {
   return "Critical";
 }
 
-function getScoreSubline(score: number): string {
-  if (score >= 86) return "Your work system is running efficiently, with minimal friction between effort and output.";
-  if (score >= 71) return "Your work system is operating well, with some early signs of coordination overhead.";
-  if (score >= 51) return "Your work system is functional, but coordination and communication are slowing execution.";
-  if (score >= 31) return "A large portion of your week is spent managing work rather than making progress.";
-  return "Your work system is consuming more time coordinating work than completing it.";
+function getHeroInterpretation(score: number): string {
+  if (score >= 71) return "Your work system is mostly efficient, with some time lost to coordination overhead.";
+  if (score >= 51) return "A significant portion of your week is going to coordination rather than execution.";
+  if (score >= 31) return "Most of your week is being spent managing work, not completing it.";
+  return "Your week is dominated by coordination. Very little time remains for focused work.";
 }
 
-function getMariaInsight(score: number): string {
-  if (score >= 86) return "Your systems are well-tuned. Small adjustments to meeting cadence or notification habits could unlock even more focused time.";
-  if (score >= 71) return "You&apos;re in good shape overall, but coordination overhead is starting to creep in. Watch for meeting bloat and context-switching patterns.";
-  if (score >= 51) return "Your work system is functional but inefficient. A significant portion of your week is lost to coordination, interruptions, and reactive work rather than execution.";
-  if (score >= 31) return "Your work system is creating real drag. Meeting load, notification pressure, and coordination overhead are consuming time that should go toward meaningful output.";
-  return "Your work system needs immediate attention. The majority of your time is being absorbed by coordination, interruptions, and after-hours spillover — leaving very little room for focused work.";
+function getMariaInsight(score: number, visibility: string): {
+  diagnosis: string;
+  consequence: string;
+  emotional: string;
+} {
+  const visLine = visibility === "low"
+    ? " Much of that effort is not visible to others."
+    : visibility === "moderate"
+    ? " Only some of that effort is visible to others."
+    : "";
+
+  if (score >= 71) {
+    return {
+      diagnosis: "Your work system is running with relatively low coordination overhead. Meetings and interruptions consume a manageable portion of your week.",
+      consequence: `Most of your time is available for focused execution.${visLine}`,
+      emotional: "Your week likely feels structured and productive.",
+    };
+  }
+  if (score >= 51) {
+    return {
+      diagnosis: "Your work system is losing a significant portion of the week to meetings, coordination, and context switching.",
+      consequence: `The time left for focused execution is being compressed into smaller and smaller windows.${visLine}`,
+      emotional: "This is why your week feels busy but unproductive.",
+    };
+  }
+  if (score >= 31) {
+    return {
+      diagnosis: "Your work system is dominated by coordination and interruptions. Meetings, tool switching, and reactive communication are consuming the majority of your available time.",
+      consequence: `Most of your available time is being consumed before meaningful work can begin, leaving limited capacity for focused execution.${visLine}`,
+      emotional: "This is why your week feels fragmented.",
+    };
+  }
+  return {
+    diagnosis: "Your work system is absorbing nearly all available time into coordination, meetings, and interruptions. There is very little room left for the work that actually matters.",
+    consequence: `Execution capacity has been reduced to a fraction of your week. The gap between effort and output is significant.${visLine}`,
+    emotional: "This is why nothing feels like enough, even when you\u2019re always on.",
+  };
 }
 
-function ShareDropdown({ metrics, shareUrl }: { metrics: { id: MetricId; value: number; status: string }[]; shareUrl: string | null }) {
+const StatusIndicator = ({ status }: { status: "good" | "warning" | "bad" }) => {
+  const colors = {
+    good: "bg-emerald-400/50 border-emerald-400",
+    warning: "bg-yellow-400/50 border-yellow-400",
+    bad: "bg-rose-400/50 border-rose-400",
+  };
+  return <div className={`w-2.5 h-2.5 rounded-full border ${colors[status]}`} />;
+};
+
+const nextStepsConfig: Record<string, string> = {
+  meetings: "Reduce or batch meetings into fewer blocks to protect execution time",
+  tools: "Consolidate into fewer systems to eliminate switching overhead",
+  interruptions: "Batch work and reduce real-time interruptions",
+  coordination: "Centralize communication and force decisions to reduce chasing",
+  night_work: "Fix daytime capacity so work fits into your day",
+  admin: "Reduce admin and protect focus blocks for deep work",
+  visibility: "Surface and track meaningful work centrally",
+};
+
+function ShareDropdown({ shareUrl }: { shareUrl: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -154,9 +128,8 @@ function ShareDropdown({ metrics, shareUrl }: { metrics: { id: MetricId; value: 
   }, []);
 
   const handleShareX = () => {
-    const hoursWasted = metrics.find(m => m.id === "hoursWasted")?.value?.toFixed(1) || "X";
     window.open(
-      `https://twitter.com/intent/tweet?text=I%20wasted%20${hoursWasted}%20hours%20in%20unnecessary%20meetings%20this%20week!%20Find%20out%20yours%3A&url=${encodeURIComponent(shareUrl || "")}`,
+      `https://twitter.com/intent/tweet?text=I%20just%20got%20my%20Work%20System%20Snapshot%20from%20Chambiar.%20Find%20out%20yours%3A&url=${encodeURIComponent(shareUrl || "")}`,
       "_blank"
     );
     setIsOpen(false);
@@ -206,18 +179,6 @@ function ShareDropdown({ metrics, shareUrl }: { metrics: { id: MetricId; value: 
   );
 }
 
-const nextStepsConfig: Record<MetricId, string> = {
-  hoursWasted: "Block 2 days/week for deep work and require agendas for all meetings",
-  afterHoursMeetings: "Set 'working hours' in your calendar and auto-decline outside requests",
-  emailDebt: "Batch email processing to 3x daily using the 'Two-Minute Rule'",
-  responseTime: "Set expectations in your signature: 'I check email at 9am, 1pm, and 5pm'",
-  collaborationBottleneck: "Set 'review hours' to batch approvals and unblock others",
-  notificationOverload: "Turn off non-essential notifications and check messages at scheduled times",
-  zoomFatigue: "Request camera-off for some calls and take 5-minute breaks between meetings",
-  expenseBlindSpots: "Audit all subscriptions this week and cancel unused tools",
-  workStructure: "Restructure your week to protect at least 2 blocks of uninterrupted focus time",
-};
-
 export default function WidgetShare({
   session,
   updateSession,
@@ -264,22 +225,37 @@ export default function WidgetShare({
   };
 
   const score = session.overallScore || 0;
-  const metrics = session.metrics || [];
+  const ws = session.workSystem;
+  const oeiScore = ws?.oei_score ?? score;
+  const hoursLost = ws?.hours_lost ?? 0;
+  const executionTime = ws?.execution_time ?? (40 - hoursLost);
+  const focusedWork = ws?.focused_work ?? 0;
+  const strategicWork = ws?.strategic_work ?? 0;
+  const nightWork = ws?.night_work ?? 0;
+  const timeBreakdown = ws?.time_breakdown ?? { meetings: 0, coordination: 0, execution: 40 };
+  const visibility = ws?.visibility ?? "moderate";
+  const weeklyCost = ws?.estimated_cost ?? 0;
+  const yearlyCost = weeklyCost * 52;
+  const breakdownCategories = ws?.breakdown_categories ?? [];
+  const insight = getMariaInsight(oeiScore, visibility);
+  const heroInterpretation = getHeroInterpretation(oeiScore);
 
-  const TrendIcon = ({ trend }: { trend?: string }) => {
-    if (trend === "up") return <TrendingUp className="h-2.5 w-2.5 text-red-500" />;
-    if (trend === "down") return <TrendingDown className="h-2.5 w-2.5 text-green-500" />;
-    return <Minus className="h-2.5 w-2.5 text-[#94A9C2]" />;
-  };
+  const totalBarHours = timeBreakdown.meetings + timeBreakdown.coordination + timeBreakdown.execution;
+  const meetingPct = totalBarHours > 0 ? (timeBreakdown.meetings / totalBarHours) * 100 : 0;
+  const coordPct = totalBarHours > 0 ? (timeBreakdown.coordination / totalBarHours) * 100 : 0;
+  const execPct = totalBarHours > 0 ? (timeBreakdown.execution / totalBarHours) * 100 : 0;
 
-  const StatusDot = ({ status }: { status: string }) => {
-    const colors: Record<string, string> = {
-      good: "bg-emerald-400/50 border-emerald-400",
-      warning: "bg-yellow-400/50 border-yellow-400",
-      bad: "bg-rose-400/50 border-rose-400",
-    };
-    return <div className={`w-2.5 h-2.5 rounded-full border ${colors[status] || "bg-gray-300 border-gray-300"}`} />;
-  };
+  // Determine top signals for next steps
+  const signalPriority: { key: string; severity: number }[] = [];
+  if (ws) {
+    if (timeBreakdown.meetings >= 12) signalPriority.push({ key: "meetings", severity: timeBreakdown.meetings });
+    if (ws.hours_lost - timeBreakdown.meetings >= 10) signalPriority.push({ key: "coordination", severity: ws.hours_lost - timeBreakdown.meetings });
+    if (nightWork >= 4) signalPriority.push({ key: "night_work", severity: nightWork });
+    if (ws.admin_ratio >= 0.55) signalPriority.push({ key: "admin", severity: ws.admin_ratio * 10 });
+    if (visibility === "low" || visibility === "moderate") signalPriority.push({ key: "visibility", severity: visibility === "low" ? 8 : 5 });
+  }
+  signalPriority.sort((a, b) => b.severity - a.severity);
+  const topSignals = signalPriority.slice(0, 3);
 
   const PreviewModal = () => (
     <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
@@ -291,102 +267,231 @@ export default function WidgetShare({
         </DialogHeader>
 
         <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-          <div className="bg-white p-4 text-center">
-            <div className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">Work System Snapshot</div>
-            <div className="text-base text-[#94A9C2] mt-[10px]">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-            <p className="text-sm text-[#3A628F] max-w-md mx-auto my-[20px]">{getScoreSubline(score)}</p>
-          </div>
-
           <div className="p-6">
-            <div className="space-y-3">
-              {metrics.map((metric) => {
-                const config = metricConfig[metric.id];
-                const Icon = config.icon;
-                const isHero = metric.id === "hoursWasted";
 
-                const statusStyles: Record<string, string> = {
-                  good: "bg-emerald-50/60 border-emerald-200 text-emerald-700",
-                  warning: "bg-yellow-50/60 border-yellow-200 text-yellow-600",
-                  bad: "bg-rose-50/60 border-rose-200 text-rose-700",
-                };
-                const statusClass = statusStyles[metric.status] || "bg-[#f8fafc] border-[#e2e8f0] text-[#103257]";
-
-                if (isHero) {
-                  return (
-                    <div
-                      key={metric.id}
-                      className={`flex items-center justify-between p-5 rounded-xl border-2 ${statusClass}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-7 w-7" />
-                        <span className="text-lg font-semibold">{config.label}</span>
-                      </div>
-                      <span className="text-3xl font-bold font-mono">
-                        {config.format(metric.value)}
-                      </span>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={metric.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-[#e2e8f0]"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-[#3A628F]" />
-                      <span className="text-sm text-[#103257]">{config.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold font-mono text-[#103257]">
-                        {config.format(metric.value)}
-                      </span>
-                      <StatusDot status={metric.status} />
-                    </div>
-                  </div>
-                );
-              })}
+            {/* 1. HEADER + HERO INTERPRETATION */}
+            <div className="text-center py-[20px]">
+              <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
+                Your Work System Snapshot
+              </h1>
+              <p className="text-sm text-[#103257] font-medium max-w-md mx-auto mt-4">
+                {heroInterpretation}
+              </p>
             </div>
 
-            <div className="border-t border-[#e2e8f0] my-5" />
+            <div className="border-t border-dashed border-[#e2e8f0]" />
 
-            <div className="text-center">
-              <div className="text-xs text-[#94A9C2] uppercase tracking-wider mb-2">Total Score</div>
-              <div
-                className="text-5xl font-bold font-mono mb-2"
-                style={{ color: getScoreColor(score) }}
-              >
-                {score}
+            {/* 2. HERO METRIC */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Coordination time lost this week
               </div>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-medium border ${getScoreBadgeClass(score)}`}
-              >
-                {getScoreLabel(score)}
-              </span>
+              <div className="text-5xl font-bold font-mono text-[#103257]">
+                {hoursLost} <span className="text-2xl font-normal">hours</span>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 3. WORK WEEK BREAKDOWN */}
+            <div className="py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
+                Where your week is going
+              </div>
+              <div className="flex h-8 rounded-lg overflow-hidden border border-[#e2e8f0]">
+                <div className="bg-[#103257] transition-all" style={{ width: `${meetingPct}%` }} />
+                <div className="bg-[#3A628F] transition-all" style={{ width: `${coordPct}%` }} />
+                <div className="bg-[#D9E7FF] transition-all" style={{ width: `${execPct}%` }} />
+              </div>
+              <div className="flex justify-between mt-3 text-sm text-[#3A628F]">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-[#103257]" />
+                  Meetings — {timeBreakdown.meetings} hrs
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-[#3A628F]" />
+                  Coordination — {timeBreakdown.coordination} hrs
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm bg-[#D9E7FF]" />
+                  Execution — {timeBreakdown.execution} hrs
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 4. EXECUTION CAPACITY */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Time left for actual work
+              </div>
+              <div className="text-4xl font-bold font-mono text-[#103257]">
+                {executionTime} <span className="text-xl font-normal">hours</span>
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">Out of your 40-hour week</p>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 5. FOCUSED WORK */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Focused work (deep execution time)
+              </div>
+              <div className="text-4xl font-bold font-mono text-[#103257]">
+                {focusedWork} <span className="text-xl font-normal">hours</span>
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">After removing admin from execution time</p>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 6. STRATEGIC WORK */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Strategic work that gets noticed
+              </div>
+              <div className="text-4xl font-bold font-mono text-[#103257]">
+                {strategicWork} <span className="text-xl font-normal">hours</span>
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">Work that gets finished, shipped, and recognized</p>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 7. VISIBILITY */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Work that gets recognized
+              </div>
+              <div className="text-3xl font-bold text-[#103257] capitalize">
+                {visibility}
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">How much of your work is visible and valued</p>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 8. NIGHT WORK */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                After-hours overflow
+              </div>
+              <div className="text-3xl font-bold font-mono text-[#103257]">
+                {nightWork} <span className="text-xl font-normal">hours</span>
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">Work happening outside normal hours</p>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 9. COST */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                Weekly cost of lost time
+              </div>
+              <div className="text-4xl font-bold font-mono text-[#103257]">
+                ${weeklyCost.toLocaleString()}
+              </div>
+              <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
+              {yearlyCost > 0 && (
+                <p className="text-xs text-[#3A628F] mt-1">
+                  &asymp; ${yearlyCost.toLocaleString()} per year
+                </p>
+              )}
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 10. OEI SCORE */}
+            <div className="text-center py-[20px]">
+              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+                OEI score
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <span
+                  className="text-5xl font-bold font-mono"
+                  style={{ color: getScoreColor(oeiScore) }}
+                >
+                  {oeiScore}
+                </span>
+                <span className="text-lg text-[#3A628F]">—</span>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium border ${getScoreBadgeClass(oeiScore)}`}
+                >
+                  {getScoreLabel(oeiScore)}
+                </span>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            {/* 11. BREAKDOWN */}
+            {breakdownCategories.length > 0 && (
+              <div className="py-[20px] space-y-5">
+                {breakdownCategories.map((category: BreakdownCategory) => (
+                  <div key={category.title}>
+                    <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
+                      {category.title}
+                    </div>
+                    <div className="space-y-2">
+                      {category.metrics.map((metric) => (
+                        <div
+                          key={metric.label}
+                          className="flex items-center justify-between p-3 rounded-lg border border-[#e2e8f0]"
+                        >
+                          <span className="text-sm text-[#103257]">{metric.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium font-mono text-[#103257]">
+                              {metric.value}
+                            </span>
+                            <StatusIndicator status={metric.status} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 12. MARIA INSIGHT */}
+        <div className="p-6 bg-white rounded-2xl border-2 border-[#e2e8f0]">
+          <div className="flex items-start gap-4">
+            <div className="w-8 h-8 bg-[#103257] rounded-full flex items-center justify-center shrink-0">
+              <span className="text-white text-sm font-bold">M</span>
+            </div>
+            <div>
+              <h4 className="font-semibold text-[#103257] mb-3">Maria&apos;s Insight</h4>
+              <ul className="space-y-2 text-sm text-[#3A628F] leading-relaxed list-disc pl-4">
+                <li>{insight.diagnosis}</li>
+                <li>{insight.consequence}</li>
+                <li className="text-[#103257] font-medium italic">{insight.emotional}</li>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* Next Steps */}
+        {/* 13. Next Steps */}
         <div className="p-6 bg-white rounded-xl border-2 border-[#e2e8f0]">
           <h4 className="font-semibold text-[#103257] mb-3">Next Steps</h4>
           <div className="space-y-3">
-            {metrics
-              .filter(m => m.status === "bad" || m.status === "warning")
-              .slice(0, 3)
-              .map((metric, index) => (
-                <div key={metric.id} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#103257] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                    {index + 1}
-                  </div>
-                  <p className="text-sm text-[#3A628F] leading-relaxed">
-                    {nextStepsConfig[metric.id]}
-                  </p>
+            {topSignals.map((signal, index) => (
+              <div key={signal.key} className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-[#103257] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                  {index + 1}
                 </div>
-              ))}
+                <p className="text-sm text-[#3A628F] leading-relaxed">
+                  {nextStepsConfig[signal.key]}
+                </p>
+              </div>
+            ))}
             <div className="flex items-start gap-3">
               <div className="w-5 h-5 rounded-full bg-[#103257] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                {Math.min(metrics.filter(m => m.status === "bad" || m.status === "warning").length, 3) + 1}
+                {topSignals.length + 1}
               </div>
               <p className="text-sm text-[#3A628F] leading-relaxed font-medium">
                 Get Chambiar to let Maria automate your workflow and improve your score
@@ -400,75 +505,6 @@ export default function WidgetShare({
             >
               Sign Up for Chambiar
             </a>
-          </div>
-        </div>
-
-        {/* Maria&apos;s Insight */}
-        <div className="p-6 bg-white rounded-xl border-2 border-[#e2e8f0]">
-          {session.workSystem && session.assessmentScope === "team" && session.teamSize ? (
-            <>
-              <div className="grid grid-cols-2 gap-4 mb-5 pb-5 border-b border-[#e2e8f0]">
-                <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                  <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Time Lost / Person</div>
-                  <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost} hrs</div>
-                  <div className="text-xs text-rose-500 mt-1">per week</div>
-                </div>
-                <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                  <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Team Total Hours</div>
-                  <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost * session.teamSize} hrs</div>
-                  <div className="text-xs text-rose-500 mt-1">{session.teamSize} people × {session.workSystem.hours_lost} hrs</div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mb-5 pb-5 border-b border-[#e2e8f0]">
-                <div>
-                  <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Execution Time / Person</div>
-                  <div className="text-2xl font-bold font-mono text-[#103257]">{40 - session.workSystem.hours_lost} hrs</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Est. Weekly Team Cost</div>
-                  <div className="text-2xl font-bold font-mono text-[#103257]">${(session.workSystem.estimated_cost * session.teamSize).toLocaleString()}</div>
-                </div>
-              </div>
-              <p className="text-xs text-[#3A628F]/50 text-right -mt-4 mb-4">Based on average US compensation for your role</p>
-            </>
-          ) : session.workSystem ? (
-            <>
-              <div className="grid grid-cols-2 gap-4 mb-5 pb-5 border-b border-[#e2e8f0]">
-                <div className="p-4 bg-rose-50/60 border-2 border-rose-200 rounded-xl text-center">
-                  <div className="text-xs text-rose-600 uppercase tracking-wider mb-1">Time Lost</div>
-                  <div className="text-3xl font-bold font-mono text-rose-700">{session.workSystem.hours_lost} hrs</div>
-                  <div className="text-xs text-rose-500 mt-1">per week</div>
-                </div>
-                <div className="p-4 bg-emerald-50/60 border-2 border-emerald-200 rounded-xl text-center">
-                  <div className="text-xs text-emerald-600 uppercase tracking-wider mb-1">Execution Time</div>
-                  <div className="text-3xl font-bold font-mono text-emerald-700">{40 - session.workSystem.hours_lost} hrs</div>
-                  <div className="text-xs text-emerald-500 mt-1">remaining / week</div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mb-5 pb-5 border-b border-[#e2e8f0]">
-                <div>
-                  <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">OEI Score</div>
-                  <div className="text-2xl font-bold font-mono" style={{ color: getScoreColor(score) }}>{score}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-[#3A628F]/60 uppercase tracking-wider mb-1">Est. Weekly Cost</div>
-                  <div className="text-2xl font-bold font-mono text-[#103257]">${session.workSystem.estimated_cost.toLocaleString()}</div>
-                </div>
-              </div>
-              <p className="text-xs text-[#3A628F]/50 text-right -mt-4 mb-4">Based on average US compensation for your role</p>
-            </>
-          ) : null}
-
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 bg-[#103257] rounded-full flex items-center justify-center shrink-0">
-              <span className="text-white text-sm font-bold">M</span>
-            </div>
-            <div>
-              <h4 className="font-semibold text-[#103257] mb-2">Maria&apos;s Insight</h4>
-              <p className="text-sm text-[#3A628F] leading-relaxed">
-                {getMariaInsight(score)}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -497,7 +533,7 @@ export default function WidgetShare({
           </div>
 
           <div className="flex items-center gap-3">
-            <ShareDropdown metrics={metrics} shareUrl={shareUrl} />
+            <ShareDropdown shareUrl={shareUrl} />
             <Button
               variant="outline"
               className="flex-1"
