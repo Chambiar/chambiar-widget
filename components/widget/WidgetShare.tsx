@@ -21,8 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { WidgetSession } from "@/app/page";
-import type { MetricId } from "@/lib/widget/types";
-import type { BreakdownCategory } from "@/lib/workSystemCalculator";
+
+
 
 interface WidgetShareProps {
   session: WidgetSession;
@@ -94,14 +94,6 @@ function getMariaInsight(score: number, visibility: string): {
   };
 }
 
-const StatusIndicator = ({ status }: { status: "good" | "warning" | "bad" }) => {
-  const colors = {
-    good: "bg-emerald-400/50 border-emerald-400",
-    warning: "bg-yellow-400/50 border-yellow-400",
-    bad: "bg-rose-400/50 border-rose-400",
-  };
-  return <div className={`w-2.5 h-2.5 rounded-full border ${colors[status]}`} />;
-};
 
 const nextStepsConfig: Record<string, string> = {
   meetings: "Reduce or batch meetings into fewer blocks to protect execution time",
@@ -236,7 +228,7 @@ export default function WidgetShare({
   const visibility = ws?.visibility ?? "moderate";
   const weeklyCost = ws?.estimated_cost ?? 0;
   const yearlyCost = weeklyCost * 52;
-  const breakdownCategories = ws?.breakdown_categories ?? [];
+
   const insight = getMariaInsight(oeiScore, visibility);
   const heroInterpretation = getHeroInterpretation(oeiScore);
 
@@ -270,11 +262,11 @@ export default function WidgetShare({
           <div className="p-6">
 
             {/* 1. HEADER + HERO INTERPRETATION */}
-            <div className="text-center py-[20px]">
+            <div className="py-[20px]">
               <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
                 Your Work System Snapshot
               </h1>
-              <p className="text-sm text-[#103257] font-medium max-w-md mx-auto mt-4">
+              <p className="text-sm text-[#103257] font-medium mt-4">
                 {heroInterpretation}
               </p>
             </div>
@@ -282,12 +274,12 @@ export default function WidgetShare({
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 2. HERO METRIC */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 Coordination time lost this week
               </div>
-              <div className="text-5xl font-bold font-mono text-[#103257]">
-                {hoursLost} <span className="text-2xl font-normal">hours</span>
+              <div className="text-3xl font-bold font-mono text-[#103257]">
+                {hoursLost} <span className="text-lg font-normal">hours</span>
               </div>
             </div>
 
@@ -298,7 +290,7 @@ export default function WidgetShare({
               <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
                 Where your week is going
               </div>
-              <div className="flex h-8 rounded-lg overflow-hidden border border-[#e2e8f0]">
+              <div className="flex h-5 rounded-lg overflow-hidden border border-[#e2e8f0]">
                 <div className="bg-[#103257] transition-all" style={{ width: `${meetingPct}%` }} />
                 <div className="bg-[#3A628F] transition-all" style={{ width: `${coordPct}%` }} />
                 <div className="bg-[#D9E7FF] transition-all" style={{ width: `${execPct}%` }} />
@@ -322,12 +314,12 @@ export default function WidgetShare({
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 4. EXECUTION CAPACITY */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 Time left for actual work
               </div>
-              <div className="text-4xl font-bold font-mono text-[#103257]">
-                {executionTime} <span className="text-xl font-normal">hours</span>
+              <div className="text-3xl font-bold font-mono text-[#103257]">
+                {executionTime} <span className="text-lg font-normal">hours</span>
               </div>
               <p className="text-xs text-[#3A628F] mt-1">Out of your 40-hour week</p>
             </div>
@@ -335,51 +327,40 @@ export default function WidgetShare({
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 5. FOCUSED WORK */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 Focused work (deep execution time)
               </div>
-              <div className="text-4xl font-bold font-mono text-[#103257]">
-                {focusedWork} <span className="text-xl font-normal">hours</span>
+              <div className="text-3xl font-bold font-mono text-[#103257]">
+                {focusedWork} <span className="text-lg font-normal">hours</span>
               </div>
               <p className="text-xs text-[#3A628F] mt-1">After removing admin from execution time</p>
             </div>
 
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
-            {/* 6. STRATEGIC WORK */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            {/* 6. STRATEGIC WORK + VISIBILITY */}
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 Strategic work that gets noticed
               </div>
-              <div className="text-4xl font-bold font-mono text-[#103257]">
-                {strategicWork} <span className="text-xl font-normal">hours</span>
+              <div className="text-3xl font-bold font-mono text-[#103257]">
+                {strategicWork} <span className="text-lg font-normal">hours</span>
               </div>
-              <p className="text-xs text-[#3A628F] mt-1">Work that gets finished, shipped, and recognized</p>
-            </div>
-
-            <div className="border-t border-dashed border-[#e2e8f0]" />
-
-            {/* 7. VISIBILITY */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
-                Work that gets recognized
-              </div>
-              <div className="text-3xl font-bold text-[#103257] capitalize">
-                {visibility}
-              </div>
-              <p className="text-xs text-[#3A628F] mt-1">How much of your work is visible and valued</p>
+              <p className="text-xs text-[#3A628F] mt-1">
+                Visibility: <span className="capitalize font-medium">{visibility}</span> — how much of your work is seen and valued
+              </p>
             </div>
 
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 8. NIGHT WORK */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 After-hours overflow
               </div>
               <div className="text-3xl font-bold font-mono text-[#103257]">
-                {nightWork} <span className="text-xl font-normal">hours</span>
+                {nightWork} <span className="text-lg font-normal">hours</span>
               </div>
               <p className="text-xs text-[#3A628F] mt-1">Work happening outside normal hours</p>
             </div>
@@ -387,11 +368,11 @@ export default function WidgetShare({
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 9. COST */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 Weekly cost of lost time
               </div>
-              <div className="text-4xl font-bold font-mono text-[#103257]">
+              <div className="text-3xl font-bold font-mono text-[#103257]">
                 ${weeklyCost.toLocaleString()}
               </div>
               <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
@@ -405,13 +386,13 @@ export default function WidgetShare({
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
             {/* 10. OEI SCORE */}
-            <div className="text-center py-[20px]">
-              <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="py-[20px]">
+              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
                 OEI score
               </div>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-3">
                 <span
-                  className="text-5xl font-bold font-mono"
+                  className="text-3xl font-bold font-mono"
                   style={{ color: getScoreColor(oeiScore) }}
                 >
                   {oeiScore}
@@ -425,36 +406,6 @@ export default function WidgetShare({
               </div>
             </div>
 
-            <div className="border-t border-dashed border-[#e2e8f0]" />
-
-            {/* 11. BREAKDOWN */}
-            {breakdownCategories.length > 0 && (
-              <div className="py-[20px] space-y-5">
-                {breakdownCategories.map((category: BreakdownCategory) => (
-                  <div key={category.title}>
-                    <div className="text-xs text-[#3A628F] uppercase tracking-wider mb-3">
-                      {category.title}
-                    </div>
-                    <div className="space-y-2">
-                      {category.metrics.map((metric) => (
-                        <div
-                          key={metric.label}
-                          className="flex items-center justify-between p-3 rounded-lg border border-[#e2e8f0]"
-                        >
-                          <span className="text-sm text-[#103257]">{metric.label}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium font-mono text-[#103257]">
-                              {metric.value}
-                            </span>
-                            <StatusIndicator status={metric.status} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
