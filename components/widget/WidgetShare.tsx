@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Mail,
-  Link2,
+  LockOpen,
   Check,
   Copy,
   ArrowLeft,
@@ -433,7 +433,7 @@ export default function WidgetShare({
 
       <div className="text-center space-y-2">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D9E7FF] rounded-full mb-4">
-          <Link2 className="h-8 w-8 text-[#103257]" />
+          <LockOpen className="h-8 w-8 text-[#103257]" />
         </div>
         <h2 className="text-2xl font-bold text-[#103257]">
           Unlock Your Full Work Breakdown

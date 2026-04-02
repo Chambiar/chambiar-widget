@@ -35,7 +35,7 @@ export default function WidgetNavbar() {
         >
           <a href="https://dev.chambiar.ai/signup" target="_blank" rel="noopener noreferrer">
             <Button variant="outline">
-              Download Chambiar
+              Sign Up for Chambiar
             </Button>
           </a>
         </div>
