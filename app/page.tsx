@@ -31,10 +31,22 @@ export interface WidgetSession {
 
 export default function WidgetPage() {
   const [step, setStep] = useState<WidgetStep>("landing");
+  const [direction, setDirection] = useState<"forward" | "back">("forward");
+  const [animKey, setAnimKey] = useState(0);
   const [session, setSession] = useState<WidgetSession>({
     id: crypto.randomUUID(),
     integrations: {},
   });
+
+  const stepOrder: WidgetStep[] = ["landing", "choice", "form", "integrate", "results", "share"];
+
+  const goToStep = (next: WidgetStep) => {
+    const currentIdx = stepOrder.indexOf(step);
+    const nextIdx = stepOrder.indexOf(next);
+    setDirection(nextIdx >= currentIdx ? "forward" : "back");
+    setAnimKey((k) => k + 1);
+    setStep(next);
+  };
 
   const updateSession = (updates: Partial<WidgetSession>) => {
     setSession((prev) => ({ ...prev, ...updates }));
@@ -53,12 +65,12 @@ export default function WidgetPage() {
       workSystem,
       dataSource: "form",
     });
-    setStep("results");
+    goToStep("results");
   };
 
   const handleAppsComplete = () => {
     updateSession({ dataSource: "apps" });
-    setStep("results");
+    goToStep("results");
   };
 
   return (
@@ -81,27 +93,35 @@ export default function WidgetPage() {
         </div>
 
         {/* Step content */}
+        <div
+          key={animKey}
+          style={{
+            animation: direction === "forward"
+              ? "fadeUp 0.4s ease-out forwards"
+              : "fadeDown 0.4s ease-out forwards",
+          }}
+        >
         {step === "landing" && (
           <WidgetLanding
             onStart={(companyType, assessmentScope, teamSize) => {
               updateSession({ companyType, assessmentScope, teamSize });
-              setStep("form");
+              goToStep("form");
             }}
           />
         )}
 
         {step === "choice" && (
           <WidgetChoice
-            onChooseForm={() => setStep("form")}
-            onChooseApps={() => setStep("integrate")}
-            onBack={() => setStep("landing")}
+            onChooseForm={() => goToStep("form")}
+            onChooseApps={() => goToStep("integrate")}
+            onBack={() => goToStep("landing")}
           />
         )}
 
         {step === "form" && (
           <WidgetFormDiagnostic
             onComplete={handleFormComplete}
-            onBack={() => setStep("landing")}
+            onBack={() => goToStep("landing")}
             onSwitchToApps={() => {}}
           />
         )}
@@ -111,7 +131,7 @@ export default function WidgetPage() {
             session={session}
             updateSession={updateSession}
             onComplete={handleAppsComplete}
-            onBack={() => setStep("landing")}
+            onBack={() => goToStep("landing")}
           />
         )}
 
@@ -119,9 +139,9 @@ export default function WidgetPage() {
           <WidgetResults
             session={session}
             updateSession={updateSession}
-            onShare={() => setStep("share")}
-            onBack={() => session.dataSource === "form" ? setStep("form") : setStep("integrate")}
-            onConnectApps={session.dataSource === "form" ? () => setStep("integrate") : undefined}
+            onShare={() => goToStep("share")}
+            onBack={() => session.dataSource === "form" ? goToStep("form") : goToStep("integrate")}
+            onConnectApps={session.dataSource === "form" ? () => goToStep("integrate") : undefined}
           />
         )}
 
@@ -129,9 +149,10 @@ export default function WidgetPage() {
           <WidgetShare
             session={session}
             updateSession={updateSession}
-            onBack={() => setStep("results")}
+            onBack={() => goToStep("results")}
           />
         )}
+        </div>
       </div>
     </div>
   );

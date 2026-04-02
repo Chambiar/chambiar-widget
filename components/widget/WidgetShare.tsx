@@ -8,7 +8,6 @@ import {
   Copy,
   ArrowLeft,
   Loader2,
-  X,
   FileText,
   Share2,
 } from "lucide-react";
@@ -55,58 +54,33 @@ function getHeroInterpretation(score: number): string {
   return "Your week is dominated by coordination. Very little time remains for focused work.";
 }
 
-function getMariaInsight(score: number, visibility: string): {
-  diagnosis: string;
-  consequence: string;
-  emotional: string;
-} {
-  const visLine = visibility === "low"
-    ? " Much of that effort is not visible to others."
-    : visibility === "moderate"
-    ? " Only some of that effort is visible to others."
-    : "";
 
-  if (score >= 71) {
-    return {
-      diagnosis: "Your work system is running with relatively low coordination overhead. Meetings and interruptions consume a manageable portion of your week.",
-      consequence: `Most of your time is available for focused execution.${visLine}`,
-      emotional: "Your week likely feels structured and productive.",
-    };
+
+function getInsightText(key: string, ws: { meeting_hours: number; coordination_loss: number; interrupt_loss: number; system_loss: number; night_work: number; admin_ratio: number; visibility_score: number }): string {
+  const tools = ws.system_loss > 0 ? Math.round(ws.system_loss / 0.8) : 4;
+  switch (key) {
+    case "meetings":
+      return `Meetings are consuming ~${ws.meeting_hours} hours of your week, leaving limited time for execution. Consolidating them into fewer blocks would immediately free up usable time.`;
+    case "coordination":
+      return `You are losing ~${ws.coordination_loss} hours to follow-ups and waiting on others. This is slowing execution more than workload itself — centralizing ownership removes that delay.`;
+    case "interruptions":
+      return "Frequent interruptions are breaking your work into short fragments. Even when time is available, it is not usable — batching work restores real focus time.";
+    case "tools":
+      return `Working across ~${tools} tools is creating constant switching overhead. Each switch resets context and reduces output — consolidating systems reduces hidden time loss.`;
+    case "night_work":
+      return `You are working ~${ws.night_work} hours outside normal time to complete work. This indicates your day cannot support execution — fixing daytime capacity removes after-hours work.`;
+    case "admin":
+      return "A large portion of your time is going to admin rather than execution. This reduces how much real work can be completed — shifting this load frees up focused work time.";
+    case "visibility":
+      return "Much of your work is not being seen or recognized. This means effort is not translating into impact — making work visible increases its value and effect.";
+    default:
+      return "";
   }
-  if (score >= 51) {
-    return {
-      diagnosis: "Your work system is losing a significant portion of the week to meetings, coordination, and context switching.",
-      consequence: `The time left for focused execution is being compressed into smaller and smaller windows.${visLine}`,
-      emotional: "This is why your week feels busy but unproductive.",
-    };
-  }
-  if (score >= 31) {
-    return {
-      diagnosis: "Your work system is dominated by coordination and interruptions. Meetings, tool switching, and reactive communication are consuming the majority of your available time.",
-      consequence: `Most of your available time is being consumed before meaningful work can begin, leaving limited capacity for focused execution.${visLine}`,
-      emotional: "This is why your week feels fragmented.",
-    };
-  }
-  return {
-    diagnosis: "Your work system is absorbing nearly all available time into coordination, meetings, and interruptions. There is very little room left for the work that actually matters.",
-    consequence: `Execution capacity has been reduced to a fraction of your week. The gap between effort and output is significant.${visLine}`,
-    emotional: "This is why nothing feels like enough, even when you\u2019re always on.",
-  };
 }
-
-
-const nextStepsConfig: Record<string, string> = {
-  meetings: "Reduce or batch meetings into fewer blocks to protect execution time",
-  tools: "Consolidate into fewer systems to eliminate switching overhead",
-  interruptions: "Batch work and reduce real-time interruptions",
-  coordination: "Centralize communication and force decisions to reduce chasing",
-  night_work: "Fix daytime capacity so work fits into your day",
-  admin: "Reduce admin and protect focus blocks for deep work",
-  visibility: "Surface and track meaningful work centrally",
-};
 
 function ShareDropdown({ shareUrl }: { shareUrl: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -119,21 +93,20 @@ function ShareDropdown({ shareUrl }: { shareUrl: string | null }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleShareX = () => {
-    window.open(
-      `https://twitter.com/intent/tweet?text=I%20just%20got%20my%20Work%20System%20Snapshot%20from%20Chambiar.%20Find%20out%20yours%3A&url=${encodeURIComponent(shareUrl || "")}`,
-      "_blank"
-    );
+  const handleCopyLink = async () => {
+    if (shareUrl) {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
     setIsOpen(false);
   };
 
-  const handleShareLinkedIn = () => {
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl || "")}`,
-      "_blank"
-    );
+  const handleDownloadPDF = () => {
+    window.print();
     setIsOpen(false);
   };
+
 
   return (
     <div className="relative flex-1" ref={dropdownRef}>
@@ -144,26 +117,24 @@ function ShareDropdown({ shareUrl }: { shareUrl: string | null }) {
         onClick={() => setIsOpen(!isOpen)}
       >
         <Share2 className="h-4 w-4 mr-2" />
-        Share
+        {linkCopied ? "Link Copied!" : "Share"}
       </Button>
 
       {isOpen && (
         <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg border border-[#e2e8f0] shadow-lg overflow-hidden z-50">
           <button
-            onClick={handleShareX}
+            onClick={handleDownloadPDF}
             className="w-full px-4 py-2.5 text-sm text-[#103257] hover:bg-[#f8fafc] flex items-center gap-2 transition-colors"
           >
-            <X className="h-4 w-4" />
-            Share on X
+            <FileText className="h-4 w-4" />
+            Download as PDF
           </button>
           <button
-            onClick={handleShareLinkedIn}
+            onClick={handleCopyLink}
             className="w-full px-4 py-2.5 text-sm text-[#103257] hover:bg-[#f8fafc] flex items-center gap-2 border-t border-[#e2e8f0] transition-colors"
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-            </svg>
-            Share on LinkedIn
+            <Copy className="h-4 w-4" />
+            Copy Link
           </button>
         </div>
       )}
@@ -179,7 +150,6 @@ export default function WidgetShare({
   const [email, setEmail] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
@@ -208,13 +178,6 @@ export default function WidgetShare({
     setShowPreviewModal(true);
   };
 
-  const handleCopy = async () => {
-    if (shareUrl) {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   const score = session.overallScore || 0;
   const ws = session.workSystem;
@@ -229,7 +192,7 @@ export default function WidgetShare({
   const weeklyCost = ws?.estimated_cost ?? 0;
   const yearlyCost = weeklyCost * 52;
 
-  const insight = getMariaInsight(oeiScore, visibility);
+
   const heroInterpretation = getHeroInterpretation(oeiScore);
 
   const totalBarHours = timeBreakdown.meetings + timeBreakdown.coordination + timeBreakdown.execution;
@@ -238,24 +201,23 @@ export default function WidgetShare({
   const execPct = totalBarHours > 0 ? (timeBreakdown.execution / totalBarHours) * 100 : 0;
 
   // Determine top signals for next steps
-  const signalPriority: { key: string; severity: number }[] = [];
-  if (ws) {
-    if (timeBreakdown.meetings >= 12) signalPriority.push({ key: "meetings", severity: timeBreakdown.meetings });
-    if (ws.hours_lost - timeBreakdown.meetings >= 10) signalPriority.push({ key: "coordination", severity: ws.hours_lost - timeBreakdown.meetings });
-    if (nightWork >= 4) signalPriority.push({ key: "night_work", severity: nightWork });
-    if (ws.admin_ratio >= 0.55) signalPriority.push({ key: "admin", severity: ws.admin_ratio * 10 });
-    if (visibility === "low" || visibility === "moderate") signalPriority.push({ key: "visibility", severity: visibility === "low" ? 8 : 5 });
-  }
+  const signalPriority: { key: string; severity: number }[] = ws ? [
+    { key: "meetings", severity: ws.meeting_hours },
+    { key: "coordination", severity: ws.coordination_loss },
+    { key: "interruptions", severity: ws.interrupt_loss },
+    { key: "tools", severity: ws.system_loss },
+    { key: "night_work", severity: ws.night_work },
+    { key: "admin", severity: ws.admin_ratio * 10 },
+    { key: "visibility", severity: (1 - ws.visibility_score) * 10 },
+  ] : [];
   signalPriority.sort((a, b) => b.severity - a.severity);
   const topSignals = signalPriority.slice(0, 3);
 
   const PreviewModal = () => (
     <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-center text-[#103257]">
-            Your Shareable Report
-          </DialogTitle>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Your Full Work Receipt</DialogTitle>
         </DialogHeader>
 
         <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
@@ -264,7 +226,7 @@ export default function WidgetShare({
             {/* 1. HEADER + HERO INTERPRETATION */}
             <div className="py-[20px]">
               <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
-                Your Work System Snapshot
+                Your Full Work Receipt
               </h1>
               <p className="text-sm text-[#103257] font-medium mt-4">
                 {heroInterpretation}
@@ -404,52 +366,32 @@ export default function WidgetShare({
                   {getScoreLabel(oeiScore)}
                 </span>
               </div>
+              <p className="text-xs text-[#3A628F] mt-1">How efficiently your work system converts effort into output</p>
             </div>
 
           </div>
         </div>
 
-        {/* 12. MARIA INSIGHT */}
-        <div className="p-6 bg-white rounded-2xl border-2 border-[#e2e8f0]">
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 bg-[#103257] rounded-full flex items-center justify-center shrink-0">
-              <span className="text-white text-sm font-bold">M</span>
-            </div>
-            <div>
-              <h4 className="font-semibold text-[#103257] mb-3">Maria&apos;s Insight</h4>
-              <ul className="space-y-2 text-sm text-[#3A628F] leading-relaxed list-disc pl-4">
-                <li>{insight.diagnosis}</li>
-                <li>{insight.consequence}</li>
-                <li className="text-[#103257] font-medium italic">{insight.emotional}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
 
         {/* 13. Next Steps */}
         <div className="p-6 bg-white rounded-xl border-2 border-[#e2e8f0]">
-          <h4 className="font-semibold text-[#103257] mb-3">Next Steps</h4>
+          <h4 className="font-semibold text-[#103257] mb-3">Maria&apos;s Insights</h4>
           <div className="space-y-3">
-            {topSignals.map((signal, index) => (
+            {ws && topSignals.map((signal, index) => (
               <div key={signal.key} className="flex items-start gap-3">
                 <div className="w-5 h-5 rounded-full bg-[#103257] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                   {index + 1}
                 </div>
                 <p className="text-sm text-[#3A628F] leading-relaxed">
-                  {nextStepsConfig[signal.key]}
+                  {getInsightText(signal.key, ws)}
                 </p>
               </div>
             ))}
-            <div className="flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-[#103257] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                {topSignals.length + 1}
-              </div>
-              <p className="text-sm text-[#3A628F] leading-relaxed font-medium">
-                Get Chambiar to let Maria automate your workflow and improve your score
-              </p>
-            </div>
+            <p className="text-sm text-[#103257] font-medium mt-4 italic">
+              Fix this with Maria — connect your tools and reclaim your time.
+            </p>
             <a
-              href="https://www.chambiar.ai/sign-up"
+              href="https://dev.chambiar.ai/signup"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 block w-full text-center px-4 py-3 bg-[#103257] text-white text-sm font-semibold rounded-lg hover:bg-[#1a4a7a] transition-colors"
@@ -461,19 +403,6 @@ export default function WidgetShare({
 
         {/* Share Actions */}
         <div className="space-y-3 mt-4">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 p-2 bg-[#f8fafc] rounded-lg font-mono text-xs text-[#103257] truncate border">
-              {shareUrl}
-            </div>
-            <Button onClick={handleCopy} variant="outline" size="sm">
-              {copied ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-
           <div className="p-3 bg-[#D9E7FF]/30 rounded-lg border border-[#D9E7FF]">
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-[#3A628F]" />
@@ -507,38 +436,38 @@ export default function WidgetShare({
           <Link2 className="h-8 w-8 text-[#103257]" />
         </div>
         <h2 className="text-2xl font-bold text-[#103257]">
-          Save & Share Your Results
+          Unlock Your Full Work Breakdown
         </h2>
         <p className="text-[#3A628F]">
-          Enter your email to get your personalized report
+          Enter your email to see Maria&apos;s deeper analysis
         </p>
       </div>
 
       <div className="bg-[#f8fafc] rounded-xl p-4 border border-[#e2e8f0]">
-        <h3 className="font-semibold text-[#103257] mb-3 text-sm">What you&apos;ll receive:</h3>
+        <h3 className="font-semibold text-[#103257] mb-3 text-sm">Your full report includes:</h3>
         <div className="space-y-2">
           <div className="flex items-start gap-2">
             <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span className="text-sm text-[#3A628F]">
-              <strong>Shareable link</strong> — Compare scores with your team
+              <strong>Execution capacity</strong> — How much time is left for real work
             </span>
           </div>
           <div className="flex items-start gap-2">
             <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span className="text-sm text-[#3A628F]">
-              <strong>PDF report</strong> — Detailed breakdown with next-step recommendations
+              <strong>Focused & strategic work</strong> — Deep execution time and what gets noticed
             </span>
           </div>
           <div className="flex items-start gap-2">
             <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span className="text-sm text-[#3A628F]">
-              <strong>Benchmark comparison</strong> — See how you stack up against others
+              <strong>Cost analysis</strong> — What your lost time is costing weekly and yearly
             </span>
           </div>
           <div className="flex items-start gap-2">
             <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
             <span className="text-sm text-[#3A628F]">
-              <strong>Action plan</strong> — Top 3 priorities to improve this week
+              <strong>OEI Score + Maria&apos;s Insight</strong> — Your efficiency rating and what it means
             </span>
           </div>
         </div>
@@ -546,7 +475,7 @@ export default function WidgetShare({
 
       <div className="space-y-3">
         <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#94A9C2]" />
+          <Mail className="absolute left-3 top-[18px] h-5 w-5 text-[#94A9C2]" />
           <Input
             type="email"
             placeholder="your@email.com"
@@ -557,35 +486,41 @@ export default function WidgetShare({
             }}
             className="pl-10 py-6 text-lg border-[#e2e8f0] focus:border-[#103257] focus:ring-[#103257]"
           />
+          <p className="text-xs text-[#94A9C2] mt-1 text-center">Your email is only used to save your results. We won&apos;t spam you.</p>
         </div>
 
         {error && (
           <p className="text-sm text-red-600">{error}</p>
         )}
 
-        <Button
-          onClick={handleGenerateLink}
-          disabled={isGenerating}
-          variant="outline"
-          className="w-full"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Generating Your Report...
-            </>
-          ) : (
-            <>
-              <FileText className="h-5 w-5 mr-2" />
-              Generate My Report
-            </>
-          )}
-        </Button>
+        <div className="flex gap-3">
+          <a
+            href="https://dev.chambiar.ai/signup"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center px-4 py-3 bg-[#103257] text-white text-sm font-semibold rounded-lg hover:bg-[#1a4a7a] transition-colors"
+          >
+            Sign Up for Chambiar
+          </a>
+          <button
+            onClick={handleGenerateLink}
+            disabled={isGenerating}
+            className="flex-1 flex items-center justify-center px-4 py-3 bg-white text-[#103257] text-sm font-semibold rounded-lg border-2 border-[#e2e8f0] hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="h-5 w-5 mr-2" />
+                View Full Receipt
+              </>
+            )}
+          </button>
+        </div>
       </div>
-
-      <p className="text-center text-xs text-[#94A9C2]">
-        Your email is only used to save your results. We won&apos;t spam you.
-      </p>
 
       <div className="flex justify-center pt-4">
         <Button

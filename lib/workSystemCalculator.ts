@@ -33,7 +33,12 @@ export interface WorkSystemResult {
   strategic_work: number;
   night_work: number;
   visibility: VisibilityLevel;
+  visibility_score: number;
   admin_ratio: number;
+  system_loss: number;
+  meeting_hours: number;
+  interrupt_loss: number;
+  coordination_loss: number;
   breakdown_categories: BreakdownCategory[];
 }
 
@@ -179,7 +184,12 @@ export function calculateWorkSystem(answers: RawAnswers, role: string): WorkSyst
     strategic_work: strategicWork,
     night_work: nightWork,
     visibility,
+    visibility_score: visibilityScore,
     admin_ratio: adminRatio,
+    system_loss: systemLoss,
+    meeting_hours: meetingHours,
+    interrupt_loss: interruptLoss,
+    coordination_loss: coordinationLoss,
     breakdown_categories: breakdownCategories,
   };
 }

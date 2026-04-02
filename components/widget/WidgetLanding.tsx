@@ -39,6 +39,28 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
     <div className="text-center space-y-8 flex flex-col items-center justify-center min-h-[80vh]">
       {/* Bounce animation styles */}
       <style jsx>{`
+        @keyframes popIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+          }
+          60% {
+            opacity: 1;
+            transform: scale(1.03) translateY(-2px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        .pop-in-1 {
+          animation: popIn 0.5s ease-out forwards;
+          opacity: 0;
+        }
+        .pop-in-2 {
+          animation: popIn 0.5s ease-out 0.3s forwards;
+          opacity: 0;
+        }
         @keyframes bounceIn {
           0% {
             opacity: 0;
@@ -90,13 +112,18 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
 
       {/* Hero */}
       <div className="space-y-4">
-        <h1 className="text-3xl md:text-4xl font-bold text-[#103257] leading-tight uppercase tracking-wide mt-[20px]">
-          HOW DOES YOUR WORK SYSTEM <span className="text-[#3A628F]">BEHAVE</span>?
+        <h1 className="text-3xl md:text-4xl font-bold text-[#103257] leading-tight uppercase tracking-wide mt-[20px] pop-in-1">
+          Your work week is costing you.
         </h1>
+        <h2 className="text-2xl md:text-3xl font-bold text-[#3A628F] uppercase tracking-wide pop-in-2">
+          Get the receipt.
+        </h2>
 
         <p className="text-lg text-[#103257] max-w-md mx-auto mt-[30px]">
-          Answer a few questions and Chambiar&apos;s AI coworker, Maria, will generate a snapshot of how your work environment is affecting you.
+          Chambiar built a free tool that estimates where your work hours actually go, powered by Maria, our AI work analyst, using formulas built from real workplace data.
         </p>
+
+        <div className="text-5xl text-[#3A628F] animate-bounce mt-2">↓</div>
       </div>
 
       {/* Company Type Selection */}
@@ -177,14 +204,11 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
             variant="outline"
             className="text-lg px-8 py-4 h-auto border-2 bg-white hover:bg-white hover:shadow-lg hover:-translate-y-1 transition-all"
           >
-            Generate Work Recap! <span className="ml-1">&rarr;</span>
+            Get My Receipt <span className="ml-1">&rarr;</span>
           </Button>
         </div>
       )}
 
-      <p className="text-lg text-[#103257]">
-        Free • No account required!
-      </p>
     </div>
   );
 }

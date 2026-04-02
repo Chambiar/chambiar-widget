@@ -114,6 +114,8 @@ export default function WidgetFormDiagnostic({
   onBack,
 }: WidgetFormDiagnosticProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [animDirection, setAnimDirection] = useState<"forward" | "back">("forward");
+  const [animKey, setAnimKey] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [otherText, setOtherText] = useState<Record<string, string>>({});
 
@@ -131,12 +133,16 @@ export default function WidgetFormDiagnostic({
       const workSystem = calculateWorkSystem(answers, role);
       onComplete([], workSystem.oei_score, workSystem);
     } else {
+      setAnimDirection("forward");
+      setAnimKey((k) => k + 1);
       setCurrentQuestion((prev) => prev + 1);
     }
   };
 
   const goToPrevious = () => {
     if (currentQuestion > 0) {
+      setAnimDirection("back");
+      setAnimKey((k) => k + 1);
       setCurrentQuestion((prev) => prev - 1);
     } else {
       onBack();
@@ -163,37 +169,46 @@ export default function WidgetFormDiagnostic({
       </div>
 
       {/* Question card */}
-      <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-[#103257] mb-6">
-          {question.heading}
-        </h2>
+      <div
+        key={animKey}
+        style={{
+          animation: animDirection === "forward"
+            ? "fadeUp 0.35s ease-out forwards"
+            : "fadeDown 0.35s ease-out forwards",
+        }}
+      >
+        <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-[#103257] mb-6">
+            {question.heading}
+          </h2>
 
-        <div className="space-y-3">
-          {question.options.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => handleSelect(option.value)}
-              className={`w-full p-4 rounded-lg border-2 text-left text-sm font-medium transition-all ${
-                answers[question.id] === option.value
-                  ? "border-[#103257] bg-[#D9E7FF] text-[#103257]"
-                  : "border-[#e2e8f0] hover:border-[#3A628F] text-[#3A628F]"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+          <div className="space-y-3">
+            {question.options.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleSelect(option.value)}
+                className={`w-full p-4 rounded-lg border-2 text-left text-sm font-medium transition-all ${
+                  answers[question.id] === option.value
+                    ? "border-[#103257] bg-[#D9E7FF] text-[#103257]"
+                    : "border-[#e2e8f0] hover:border-[#3A628F] text-[#3A628F]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
 
-          {/* Text input for "Other" */}
-          {isOtherSelected && (
-            <input
-              type="text"
-              placeholder="Please specify your role..."
-              value={otherText[question.id] || ""}
-              onChange={(e) => setOtherText((prev) => ({ ...prev, [question.id]: e.target.value }))}
-              className="w-full p-4 rounded-lg border-2 border-[#103257] bg-white text-sm text-[#103257] placeholder-[#94A9C2] outline-none focus:ring-2 focus:ring-[#D9E7FF]"
-              autoFocus
-            />
-          )}
+            {/* Text input for "Other" */}
+            {isOtherSelected && (
+              <input
+                type="text"
+                placeholder="Please specify your role..."
+                value={otherText[question.id] || ""}
+                onChange={(e) => setOtherText((prev) => ({ ...prev, [question.id]: e.target.value }))}
+                className="w-full p-4 rounded-lg border-2 border-[#103257] bg-white text-sm text-[#103257] placeholder-[#94A9C2] outline-none focus:ring-2 focus:ring-[#D9E7FF]"
+                autoFocus
+              />
+            )}
+          </div>
         </div>
       </div>
 
