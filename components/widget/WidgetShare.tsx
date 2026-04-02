@@ -329,23 +329,27 @@ export default function WidgetShare({
 
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
-            {/* 9. COST */}
-            <div className="py-[20px]">
-              <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
-                Weekly cost of lost time
-              </div>
-              <div className="text-3xl font-bold font-mono text-[#103257]">
-                ${weeklyCost.toLocaleString()}
-              </div>
-              <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
-              {yearlyCost > 0 && (
-                <p className="text-xs text-[#3A628F] mt-1">
-                  &asymp; ${yearlyCost.toLocaleString()} per year
-                </p>
-              )}
-            </div>
+            {/* 9. COST — team only */}
+            {session.assessmentScope === "team" && (
+              <>
+                <div className="py-[20px]">
+                  <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
+                    Weekly cost of lost time
+                  </div>
+                  <div className="text-3xl font-bold font-mono text-[#103257]">
+                    ${weeklyCost.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
+                  {yearlyCost > 0 && (
+                    <p className="text-xs text-[#3A628F] mt-1">
+                      &asymp; ${yearlyCost.toLocaleString()} per year
+                    </p>
+                  )}
+                </div>
 
-            <div className="border-t border-dashed border-[#e2e8f0]" />
+                <div className="border-t border-dashed border-[#e2e8f0]" />
+              </>
+            )}
 
             {/* 10. OEI SCORE */}
             <div className="py-[20px]">

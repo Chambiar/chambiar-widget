@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +13,11 @@ export default function WidgetNavbar() {
       )}
     >
       <div className="container mx-auto px-4 md:px-0 py-3 flex items-center">
-        <Link
+        <a
           href="/"
           className="flex items-center space-x-2"
           style={{ marginLeft: "20px" }}
+          onClick={(e) => { e.preventDefault(); window.location.href = "/"; }}
         >
           <Image
             src="/Chambiar Logo.svg"
@@ -27,7 +28,7 @@ export default function WidgetNavbar() {
             className="object-contain"
             priority
           />
-        </Link>
+        </a>
 
         <div
           className="ml-auto flex items-center gap-3 sm:gap-4"
