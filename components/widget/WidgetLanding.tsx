@@ -113,17 +113,14 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
       {/* Hero */}
       <div className="space-y-4">
         <h1 className="text-3xl md:text-4xl font-bold text-[#103257] leading-tight uppercase tracking-wide mt-[20px] pop-in-1">
-          Your work week is costing you.
+          Where does your time actually go?
         </h1>
-        <h2 className="text-2xl md:text-3xl font-bold text-[#3A628F] uppercase tracking-wide pop-in-2">
-          Get the receipt.
-        </h2>
 
         <p className="text-lg text-[#103257] max-w-md mx-auto mt-[30px]">
-          Chambiar built a free tool that estimates where your work hours actually go, powered by Maria, our AI work analyst, using formulas built from real workplace data.
+          Break down where your time is slipping.
         </p>
 
-        <div className="text-5xl text-[#3A628F] animate-bounce mt-2">↓</div>
+        <div className="text-5xl text-[#3A628F] animate-bounce mt-[20px]">↓</div>
       </div>
 
       {/* Company Type Selection */}
