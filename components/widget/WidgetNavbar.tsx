@@ -30,7 +30,7 @@ export default function WidgetNavbar() {
         </a>
 
         <div className="ml-auto flex items-center gap-3 sm:gap-4">
-          <a href="https://dev.chambiar.ai/signup" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.chambiar.ai/betasignup" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" className="text-xs sm:text-sm px-3 sm:px-4">
               Sign Up for Chambiar
             </Button>

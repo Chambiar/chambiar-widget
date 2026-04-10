@@ -401,7 +401,7 @@ export default function WidgetShare({
               Fix this with Maria — connect your tools and reclaim your time.
             </p>
             <a
-              href="https://dev.chambiar.ai/signup"
+              href="https://www.chambiar.ai/betasignup"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 block w-full text-center px-4 py-3 bg-[#103257] text-white text-sm font-semibold rounded-lg hover:bg-[#1a4a7a] transition-colors"
@@ -505,7 +505,7 @@ export default function WidgetShare({
 
         <div className="flex flex-col sm:flex-row gap-3">
           <a
-            href="https://dev.chambiar.ai/signup"
+            href="https://www.chambiar.ai/betasignup"
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center px-4 py-3 bg-[#103257] text-white text-sm font-semibold rounded-lg hover:bg-[#1a4a7a] transition-colors"
