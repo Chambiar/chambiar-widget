@@ -215,13 +215,13 @@ export default function WidgetShare({
 
   const PreviewModal = () => (
     <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg md:max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="sr-only">
           <DialogTitle>Your Full Work Receipt</DialogTitle>
         </DialogHeader>
 
         <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
 
             {/* 1. HEADER + HERO INTERPRETATION */}
             <div className="py-[20px]">
@@ -373,6 +373,12 @@ export default function WidgetShare({
               <p className="text-xs text-[#3A628F] mt-1">How efficiently your work system converts effort into output</p>
             </div>
 
+            <div className="border-t border-dashed border-[#e2e8f0]" />
+
+            <p className="text-xs text-[#94A9C2] text-center italic py-[20px]">
+              Derived from real-world work patterns and coordination data
+            </p>
+
           </div>
         </div>
 
@@ -439,7 +445,7 @@ export default function WidgetShare({
         <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D9E7FF] rounded-full mb-4">
           <LockOpen className="h-8 w-8 text-[#103257]" />
         </div>
-        <h2 className="text-2xl font-bold text-[#103257]">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#103257]">
           Unlock Your Full Work Breakdown
         </h2>
         <p className="text-[#3A628F]">
@@ -497,7 +503,7 @@ export default function WidgetShare({
           <p className="text-sm text-red-600">{error}</p>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <a
             href="https://dev.chambiar.ai/signup"
             target="_blank"

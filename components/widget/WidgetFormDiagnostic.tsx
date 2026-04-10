@@ -177,17 +177,17 @@ export default function WidgetFormDiagnostic({
             : "fadeDown 0.35s ease-out forwards",
         }}
       >
-        <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-[#103257] mb-6">
+        <div className="bg-white rounded-2xl border border-[#e2e8f0] p-4 sm:p-6 shadow-sm">
+          <h2 className="text-lg sm:text-xl font-semibold text-[#103257] mb-4 sm:mb-6">
             {question.heading}
           </h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {question.options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
-                className={`w-full p-4 rounded-lg border-2 text-left text-sm font-medium transition-all ${
+                className={`w-full p-3 sm:p-4 rounded-lg border-2 text-left text-sm font-medium transition-all ${
                   answers[question.id] === option.value
                     ? "border-[#103257] bg-[#D9E7FF] text-[#103257]"
                     : "border-[#e2e8f0] hover:border-[#3A628F] text-[#3A628F]"

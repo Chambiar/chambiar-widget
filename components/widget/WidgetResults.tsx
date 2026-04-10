@@ -130,11 +130,11 @@ export default function WidgetResults({
   return (
     <div className="space-y-5">
       <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
 
           {/* 1. HEADER + HERO INTERPRETATION */}
           <div className="text-center py-[20px]">
-            <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
+            <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
               Your Work Breakdown
             </h1>
             <p className="text-sm text-[#103257] font-medium mt-4">
@@ -146,20 +146,20 @@ export default function WidgetResults({
 
           {/* 2. HERO METRIC — Time lost to coordination */}
           <div className="text-center py-[20px]">
-            <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
+            <div className="text-xs sm:text-sm text-[#3A628F] uppercase tracking-wider mb-2">
               Coordination time lost this week
             </div>
-            <div className="text-3xl font-bold font-mono text-[#103257]">
-              {hoursLost} <span className="text-lg font-normal">hours</span>
+            <div className="text-2xl sm:text-3xl font-bold font-mono text-[#103257]">
+              {hoursLost} <span className="text-base sm:text-lg font-normal">hours</span>
             </div>
-            <p className="text-xs text-[#3A628F] mt-2">Meetings, interruptions, and switching between tools</p>
+            <p className="text-xs text-[#3A628F] mt-2 px-2">Meetings, interruptions, and switching between tools</p>
           </div>
 
           <div className="border-t border-dashed border-[#e2e8f0]" />
 
           {/* 3. WORK WEEK BREAKDOWN */}
           <div className="py-[20px]">
-            <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-3 text-center">
+            <div className="text-xs sm:text-sm text-[#3A628F] uppercase tracking-wider mb-3 text-center">
               Where your week is going
             </div>
             <div className="flex h-5 rounded-lg overflow-hidden border border-[#e2e8f0]">
@@ -179,7 +179,7 @@ export default function WidgetResults({
                 title={`Execution: ${timeBreakdown.execution} hrs`}
               />
             </div>
-            <div className="flex justify-between mt-3 text-sm text-[#3A628F]">
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-1.5 sm:gap-0 mt-3 text-xs sm:text-sm text-[#3A628F]">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-[#103257]" />
                 Meetings — {timeBreakdown.meetings} hrs
@@ -193,13 +193,16 @@ export default function WidgetResults({
                 Execution — {timeBreakdown.execution} hrs
               </div>
             </div>
-            <p className="text-xs text-[#3A628F] mt-3 text-center">Only {timeBreakdown.execution} hours left for execution this week</p>
+            <p className="text-xs text-[#3A628F] mt-3 text-center px-2">Only {timeBreakdown.execution} hours left for execution this week</p>
           </div>
 
         </div>
       </div>
 
       {/* CTA */}
+      <p className="text-xs text-[#94A9C2] text-center italic">
+        Derived from real-world work patterns and coordination data
+      </p>
       <p className="text-sm text-[#3A628F] text-center font-medium">
         See Maria&apos;s Insights & Deeper Outcomes Next
       </p>

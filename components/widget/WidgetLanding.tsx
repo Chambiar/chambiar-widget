@@ -111,20 +111,23 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
       `}</style>
 
       {/* Hero */}
-      <div className="space-y-4">
-        <h1 className="text-3xl md:text-4xl font-bold text-[#103257] leading-tight uppercase tracking-wide mt-[20px] pop-in-1">
+      <div className="flex flex-col items-center gap-4 sm:gap-5 mt-[20px]">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#103257] leading-tight uppercase tracking-wide pop-in-1">
           Where does your time actually go?
         </h1>
 
-        <p className="text-lg text-[#103257] max-w-md mx-auto mt-[30px]">
-          Break down where your time is slipping.
+        <p className="text-base sm:text-lg text-[#103257] max-w-md mx-auto px-2">
+          You might not like the answer.
+        </p>
+        <p className="text-xs sm:text-sm text-[#3A628F] max-w-md mx-auto px-2">
+          You worked all day. But how much of that was actual work?
         </p>
 
-        <div className="text-5xl text-[#3A628F] animate-bounce mt-[20px]">↓</div>
+        <div className="text-4xl sm:text-5xl text-[#3A628F] animate-bounce mt-2">↓</div>
       </div>
 
       {/* Company Type Selection */}
-      <div className="grid grid-cols-3 gap-3 py-5 w-full">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 py-5 w-full">
         {companyOptions.map((option, i) => {
           const Icon = option.icon;
           const isSelected = selected === option.id;
@@ -135,15 +138,15 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
                 setSelected(option.id);
                 setScope(null);
               }}
-              className={`p-4 rounded-lg border-2 transition-all text-center bounce-in bounce-in-${i + 1} ${
+              className={`p-3 sm:p-5 md:p-6 rounded-lg border-2 transition-all text-center bounce-in bounce-in-${i + 1} ${
                 isSelected
                   ? "border-[#103257] bg-[#103257]/5 shadow-md"
                   : "border-[#e2e8f0] bg-white hover:-translate-y-1 hover:shadow-md"
               }`}
             >
-              <Icon className={`h-6 w-6 mx-auto mb-2 ${isSelected ? "text-[#103257]" : "text-[#3A628F]"}`} strokeWidth={1.5} />
-              <h3 className={`font-semibold text-sm ${isSelected ? "text-[#103257]" : "text-[#103257]"}`}>{option.label}</h3>
-              <p className="text-xs text-[#3A628F] mt-1 leading-snug">{option.subline}</p>
+              <Icon className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 mx-auto mb-2 ${isSelected ? "text-[#103257]" : "text-[#3A628F]"}`} strokeWidth={1.5} />
+              <h3 className={`font-semibold text-sm sm:text-base ${isSelected ? "text-[#103257]" : "text-[#103257]"}`}>{option.label}</h3>
+              <p className="text-[10px] sm:text-xs md:text-sm text-[#3A628F] mt-1 leading-snug">{option.subline}</p>
             </button>
           );
         })}
