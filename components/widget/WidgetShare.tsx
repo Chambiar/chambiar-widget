@@ -162,8 +162,42 @@ export default function WidgetShare({
     setError(null);
     setIsGenerating(true);
 
-    // TODO: Replace with real API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    // Send data to Google Sheets
+    const ws = session.workSystem;
+    try {
+      await fetch(
+        "https://script.google.com/macros/s/AKfycbwtXkMKUbPqGJMhCqnEnz1RAMZMEVz-8lLG-wkIevfHyGNtMNyghKT55adb_kn8GLj3/exec",
+        {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            companyType: session.companyType ?? "",
+            assessmentScope: session.assessmentScope ?? "",
+            teamSize: session.teamSize ?? "",
+            role: ws ? ({ 90: "Executive/Founder", 70: "Manager/Team Lead", 75: "Product/Engineering", 65: "Sales/Marketing", 55: "IC", 40: "Operations/Admin", 85: "Consultant" }[ws.hourly_rate] ?? "Other") : "",
+            tools: ws?.system_loss ? Math.round(ws.system_loss / 0.8) : "",
+            meetingHours: ws?.meeting_hours ?? "",
+            interruptions: ws?.interrupt_loss ?? "",
+            coordination: ws?.coordination_loss ?? "",
+            nightWork: ws?.night_work ?? "",
+            adminRatio: ws?.admin_ratio ?? "",
+            visibility: ws?.visibility ?? "",
+            hoursLost: ws?.hours_lost ?? "",
+            executionTime: ws?.execution_time ?? "",
+            focusedWork: ws?.focused_work ?? "",
+            strategicWork: ws?.strategic_work ?? "",
+            weeklyCost: ws?.estimated_cost ?? "",
+            yearlyCost: (ws?.estimated_cost ?? 0) * 52,
+            oeiScore: ws?.oei_score ?? "",
+            visibilityLevel: ws?.visibility ?? "",
+          }),
+        }
+      );
+    } catch {
+      // Silently fail — don't block the user experience
+    }
 
     const mockSlug = Math.random().toString(36).substring(2, 8);
     const generatedUrl = `${window.location.origin}/share/${mockSlug}`;
@@ -223,9 +257,22 @@ export default function WidgetShare({
         <div className="bg-white rounded-2xl border-2 border-[#e2e8f0] shadow-lg overflow-hidden">
           <div className="p-4 sm:p-6">
 
-            {/* 1. HEADER + HERO INTERPRETATION */}
-            <div className="py-[20px]">
-              <h1 className="text-2xl font-bold uppercase tracking-widest text-[#103257] mb-1">
+            {/* 1. HEADER + HERO INTERPRETATION — receipt printout style */}
+            <div className="py-[20px] text-center font-mono">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-[#3A628F] mb-2">
+                Chambiar · Work Receipt
+              </p>
+              <p className="text-[10px] text-[#94A9C2] mb-5">
+                {new Date().toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                })}
+              </p>
+              <h1 className="text-2xl font-bold uppercase tracking-[0.18em] text-[#103257] mb-1">
                 Your Full Work Receipt
               </h1>
               <p className="text-sm text-[#103257] font-medium mt-4">
@@ -329,25 +376,31 @@ export default function WidgetShare({
 
             <div className="border-t border-dashed border-[#e2e8f0]" />
 
-            {/* 9. COST — team only */}
+            {/* 9. COST — team only — receipt TOTAL block */}
             {session.assessmentScope === "team" && (
               <>
-                <div className="py-[20px]">
-                  <div className="text-sm text-[#3A628F] uppercase tracking-wider mb-2">
-                    Weekly cost of lost time
+                <div className="py-[24px] font-mono">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-xs sm:text-sm uppercase tracking-[0.18em] text-[#3A628F]">
+                      Weekly cost of lost time
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-bold text-[#103257]">
+                      ${weeklyCost.toLocaleString()}
+                    </span>
                   </div>
-                  <div className="text-3xl font-bold font-mono text-[#103257]">
-                    ${weeklyCost.toLocaleString()}
-                  </div>
-                  <p className="text-xs text-[#3A628F] mt-1">Based on average US compensation for your role</p>
+                  <p className="text-[11px] text-[#3A628F] mt-3">
+                    Based on average US compensation for your role
+                  </p>
                   {yearlyCost > 0 && (
-                    <p className="text-xs text-[#3A628F] mt-1">
+                    <p className="text-[11px] text-[#3A628F] mt-1">
                       &asymp; ${yearlyCost.toLocaleString()} per year
                     </p>
                   )}
                 </div>
 
+                {/* Double dashed divider — closes the total receipt-style */}
                 <div className="border-t border-dashed border-[#e2e8f0]" />
+                <div className="border-t border-dashed border-[#e2e8f0] mt-[3px]" />
               </>
             )}
 

@@ -2,18 +2,49 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import '@/app/globals.css';
 import { cn } from '@/lib/utils';
-import { Manrope } from 'next/font/google';
+import { Quicksand, Space_Mono } from 'next/font/google';
 import WidgetNavbar from '@/components/widget/WidgetNavbar';
 
-const manrope = Manrope({
+const quicksand = Quicksand({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
-  variable: '--font-sans',
+  variable: '--font-quicksand',
+  display: 'swap',
 });
 
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
+  display: 'swap',
+});
+
+const SITE_URL = 'https://workreceipt.chambiar.ai';
+const OG_TITLE = 'Work Receipt — Free Work Time Audit';
+const DESCRIPTION =
+  "See where your work time actually goes. Work Receipt is Chambiar's free 2-minute audit of your workday — coordination, context-switching, and real work, itemized.";
+
 export const metadata: Metadata = {
-  title: 'Chambiar — Work System Snapshot',
-  description: 'Find out how your work system is affecting your productivity. Free assessment by Chambiar.',
+  metadataBase: new URL(SITE_URL),
+  title: 'Work Receipt — Free Work Time Audit | Chambiar',
+  description: DESCRIPTION,
+  alternates: {
+    canonical: SITE_URL,
+  },
+  openGraph: {
+    title: OG_TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    type: 'website',
+    siteName: 'Chambiar',
+    images: ['/Chambiar Logo.svg'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: OG_TITLE,
+    description: DESCRIPTION,
+    images: ['/Chambiar Logo.svg'],
+  },
 };
 
 export default function RootLayout({
@@ -22,7 +53,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn(manrope.variable, 'font-sans')} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={cn(quicksand.variable, spaceMono.variable, 'font-sans')}
+      suppressHydrationWarning
+    >
       <body className="bg-background text-foreground min-h-screen flex flex-col">
         <WidgetNavbar />
         <main className="flex-1 flex flex-col pt-[72px]">

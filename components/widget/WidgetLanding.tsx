@@ -123,11 +123,11 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
           You worked all day. But how much of that was actual work?
         </p>
 
-        <div className="text-4xl sm:text-5xl text-[#3A628F] animate-bounce mt-2">↓</div>
+        <div className="text-4xl sm:text-5xl text-[#3A628F] animate-slow-float mt-2">↓</div>
       </div>
 
       {/* Company Type Selection */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 py-5 w-full">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 py-5 w-full">
         {companyOptions.map((option, i) => {
           const Icon = option.icon;
           const isSelected = selected === option.id;
@@ -138,10 +138,10 @@ export default function WidgetLanding({ onStart }: WidgetLandingProps) {
                 setSelected(option.id);
                 setScope(null);
               }}
-              className={`p-3 sm:p-5 md:p-6 rounded-lg border-2 transition-all text-center bounce-in bounce-in-${i + 1} ${
+              className={`p-5 sm:p-7 md:p-8 rounded-3xl border transition-all duration-200 ease-out text-center bounce-in bounce-in-${i + 1} ${
                 isSelected
-                  ? "border-[#103257] bg-[#103257]/5 shadow-md"
-                  : "border-[#e2e8f0] bg-white hover:-translate-y-1 hover:shadow-md"
+                  ? "border-[#103257] bg-[#103257]/5 shadow-[0_18px_44px_-14px_rgba(16,50,87,0.28)] -translate-y-0.5"
+                  : "border-[#e2e8f0] bg-white shadow-[0_10px_30px_-12px_rgba(16,50,87,0.16)] hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_22px_48px_-14px_rgba(16,50,87,0.26)]"
               }`}
             >
               <Icon className={`h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 mx-auto mb-2 ${isSelected ? "text-[#103257]" : "text-[#3A628F]"}`} strokeWidth={1.5} />

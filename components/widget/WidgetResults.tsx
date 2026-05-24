@@ -105,7 +105,7 @@ export default function WidgetResults({
             Maria is analyzing your work patterns...
           </h2>
           <p className="text-[#3A628F]">
-            Building your work system snapshot
+            Building your Work Receipt
           </p>
         </div>
         <div className="flex items-center justify-center gap-2 text-sm text-[#94A9C2]">
