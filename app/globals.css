@@ -114,3 +114,135 @@
   animation: slowFloat 2.8s ease-in-out infinite;
   will-change: transform;
 }
+
+@keyframes nudgeX {
+  0%, 100% { transform: translateX(0); }
+  50%     { transform: translateX(13px); }
+}
+
+/* ---- Soft clay / neumorphic surfaces on white (extruded 3D) ---- */
+.clay {
+  background: #eceff4;
+  box-shadow: 11px 11px 24px #d0d5de, -11px -11px 24px #ffffff;
+}
+.clay:hover {
+  box-shadow: 15px 15px 32px #cbd1db, -15px -15px 32px #ffffff;
+}
+.clay-pressed {
+  background: #e6e9f0;
+  box-shadow: inset 7px 7px 15px #ccd2dc, inset -7px -7px 15px #ffffff;
+}
+.clay-panel {
+  background: #eef1f6;
+  box-shadow: 20px 20px 44px #cfd5df, -20px -20px 44px #ffffff;
+}
+.clay-input {
+  background: #e7eaf1;
+  box-shadow: inset 6px 6px 13px #ced4de, inset -6px -6px 13px #ffffff;
+}
+.clay-chip {
+  box-shadow:
+    5px 7px 16px rgba(40, 60, 110, 0.42),
+    2px 2px 5px rgba(40, 60, 110, 0.28),
+    inset 2px 3px 6px rgba(255, 255, 255, 0.7),
+    inset -3px -5px 10px rgba(0, 0, 0, 0.32);
+}
+.clay-cta {
+  box-shadow:
+    -5px -5px 14px rgba(255, 255, 255, 0.65),
+    8px 11px 26px rgba(30, 150, 100, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -3px 7px rgba(18, 110, 72, 0.32);
+}
+.clay-cta:hover {
+  box-shadow:
+    -5px -5px 14px rgba(255, 255, 255, 0.7),
+    11px 15px 34px rgba(30, 150, 100, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.65),
+    inset 0 -3px 7px rgba(18, 110, 72, 0.32);
+}
+
+/* Receipt unfolds right-to-left on load */
+@keyframes receiptUnfold {
+  0%   { clip-path: inset(0 0 0 100%); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { clip-path: inset(0 0 0 0%); opacity: 1; }
+}
+.receipt-unfold {
+  animation: receiptUnfold 2.6s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+  will-change: clip-path;
+}
+
+/* Receipt launch — gentle bounce, then smoothly shoots up off-screen.
+   Only animates translateY so Tailwind's translate (centering) is preserved. */
+@keyframes receiptLaunch {
+  0%   { transform: translateY(0);    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  20%  { transform: translateY(-15px); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  42%  { transform: translateY(0);    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  56%  { transform: translateY(-12px); animation-timing-function: cubic-bezier(0.6, 0, 0.85, 0.35); }
+  100% { transform: translateY(-135vh); }
+}
+.receipt-launch {
+  animation: receiptLaunch 2.2s linear forwards;
+}
+
+/* Register bops down (smoothly) as the receipt shoots up */
+@keyframes registerBop {
+  0%, 46% { transform: translateY(0);   animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
+  63%     { transform: translateY(15px); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  100%    { transform: translateY(0); }
+}
+.register-bop {
+  animation: registerBop 2.2s linear forwards;
+}
+
+/* Sticker peels/folds right→left on click (rotate stays via the `rotate` prop) */
+@keyframes stickerFold {
+  0%   { transform: scaleX(1); }
+  55%  { transform: scaleX(0.16) skewY(-3deg); }
+  100% { transform: scaleX(0.02) skewY(-7deg); opacity: 0.65; }
+}
+.sticker-fold {
+  transform-origin: left center;
+  animation: stickerFold 0.55s cubic-bezier(0.5, 0, 0.75, 0.3) forwards;
+}
+
+/* Receipt dispensing out of the slot — reveals top→bottom */
+@keyframes receiptDispense {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.receipt-dispense {
+  animation: receiptDispense 4s cubic-bezier(0.25, 0.6, 0.35, 1) forwards;
+}
+
+/* Torn top edge for the printed receipt */
+.receipt-torn-top {
+  --t: 7px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--t)) no-repeat,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / calc(2 * var(--t)) var(--t) repeat-x;
+  -webkit-mask-composite: source-over;
+  mask:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - var(--t)) no-repeat,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / calc(2 * var(--t)) var(--t) repeat-x;
+  mask-composite: add;
+}
+
+/* ---- CSS receipt (layered paper asset) ---- */
+.receipt-wrap {
+  filter: drop-shadow(0 16px 20px rgba(60, 80, 120, 0.32));
+}
+.receipt {
+  --zig: 7px;
+  background: #ffffff;
+  border-radius: 7px 7px 0 0;
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--zig)) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--zig)) var(--zig) repeat-x;
+  -webkit-mask-composite: source-over;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--zig)) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(2 * var(--zig)) var(--zig) repeat-x;
+  mask-composite: add;
+}

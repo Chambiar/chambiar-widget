@@ -9,7 +9,7 @@ export default function WidgetNavbar() {
   return (
     <header
       className={cn(
-        "fixed top-0 z-50 w-full border-b border-border bg-background/60 backdrop-blur-md shadow-md"
+        "fixed top-0 z-50 w-full border-b border-white/50 bg-white/40 backdrop-blur-xl shadow-[0_8px_30px_-12px_rgba(60,80,120,0.25)]"
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 md:px-8 py-3 flex items-center">

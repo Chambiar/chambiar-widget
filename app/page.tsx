@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import WidgetLanding from "@/components/widget/WidgetLanding";
+import WidgetReceipt from "@/components/widget/WidgetReceipt";
 import WidgetChoice from "@/components/widget/WidgetChoice";
 import WidgetFormDiagnostic from "@/components/widget/WidgetFormDiagnostic";
 import WidgetIntegration from "@/components/widget/WidgetIntegration";
@@ -74,23 +75,34 @@ export default function WidgetPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-md sm:max-w-lg md:max-w-xl">
-        {/* Progress indicator */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {progressSteps.map((s, i) => (
-            <div
-              key={s}
-              className={`h-2 rounded-full transition-all ${
-                step === s
-                  ? "w-8 bg-[#103257]"
-                  : i < progressSteps.indexOf(step)
-                  ? "w-2 bg-[#3A628F]"
-                  : "w-2 bg-[#94A9C2]"
-              }`}
-            />
-          ))}
-        </div>
+    <div className="min-h-screen relative overflow-hidden bg-white">
+      {/* Interactive receipt lives at the root so `fixed` maps to the viewport */}
+      {step === "landing" && <WidgetReceipt />}
+
+      <div
+        className={`relative z-10 py-6 sm:py-8 ${
+          step === "landing"
+            ? "w-full px-6 sm:px-12"
+            : "container mx-auto px-4 sm:px-6 max-w-md sm:max-w-lg md:max-w-xl"
+        }`}
+      >
+        {/* Progress indicator — hidden on the landing step */}
+        {step !== "landing" && (
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {progressSteps.map((s, i) => (
+              <div
+                key={s}
+                className={`h-2 rounded-full transition-all ${
+                  step === s
+                    ? "w-8 bg-[#103257]"
+                    : i < progressSteps.indexOf(step)
+                    ? "w-2 bg-[#3A628F]"
+                    : "w-2 bg-[#94A9C2]"
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Step content */}
         <div
@@ -101,7 +113,7 @@ export default function WidgetPage() {
               : "fadeDown 0.4s ease-out forwards",
           }}
         >
-        {step === "landing" && (
+        {false && (
           <WidgetLanding
             onStart={(companyType, assessmentScope, teamSize) => {
               updateSession({ companyType, assessmentScope, teamSize });

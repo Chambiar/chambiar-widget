@@ -2,13 +2,20 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import '@/app/globals.css';
 import { cn } from '@/lib/utils';
-import { Quicksand, Space_Mono } from 'next/font/google';
+import { Quicksand, Space_Mono, Caveat } from 'next/font/google';
 import WidgetNavbar from '@/components/widget/WidgetNavbar';
 
 const quicksand = Quicksand({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-quicksand',
+  display: 'swap',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-hand',
   display: 'swap',
 });
 
@@ -55,16 +62,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(quicksand.variable, spaceMono.variable, 'font-sans')}
+      className={cn(quicksand.variable, spaceMono.variable, caveat.variable, 'font-sans')}
       suppressHydrationWarning
     >
-      <body className="bg-background text-foreground min-h-screen flex flex-col">
+      <body className="text-foreground min-h-screen flex flex-col bg-white">
         <WidgetNavbar />
         <main className="flex-1 flex flex-col pt-[72px]">
           {children}
         </main>
-        <footer className="border-t border-[#e2e8f0] py-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
+        <footer className="border-t border-white/50 bg-white/40 backdrop-blur-xl shadow-[0_-8px_30px_-14px_rgba(60,80,120,0.25)] py-2 text-center">
+          <div className="flex items-center justify-center gap-2 mb-0.5">
             <Image
               src="/Chambiar Logo.svg"
               alt="Chambiar"
@@ -74,7 +81,7 @@ export default function RootLayout({
               className="object-contain opacity-60"
             />
           </div>
-          <p className="text-xs text-[#94A9C2]">&copy; {new Date().getFullYear()} Chambiar</p>
+          <p className="text-xs text-[#7c8aa6]">&copy; {new Date().getFullYear()} Chambiar</p>
         </footer>
       </body>
     </html>
