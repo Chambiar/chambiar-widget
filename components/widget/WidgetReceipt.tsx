@@ -121,6 +121,56 @@ const KEYS = { left: "25%", top: "59%", width: "50%", height: "34%" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Google Apps Script endpoint (same one the old Share step used).
+const SHEET_ENDPOINT =
+  "https://script.google.com/macros/s/AKfycbwtXkMKUbPqGJMhCqnEnz1RAMZMEVz-8lLG-wkIevfHyGNtMNyghKT55adb_kn8GLj3/exec";
+
+async function submitToSheet(
+  email: string,
+  ws: ReturnType<typeof calculateWorkSystem>,
+) {
+  const roleByRate: Record<number, string> = {
+    90: "Executive/Founder",
+    70: "Manager/Team Lead",
+    75: "Product/Engineering",
+    65: "Sales/Marketing",
+    55: "IC",
+    40: "Operations/Admin",
+    85: "Consultant",
+  };
+  try {
+    await fetch(SHEET_ENDPOINT, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        companyType: "",
+        assessmentScope: "",
+        teamSize: "",
+        role: roleByRate[ws.hourly_rate] ?? "Other",
+        tools: ws.system_loss ? Math.round(ws.system_loss / 0.8) : "",
+        meetingHours: ws.meeting_hours ?? "",
+        interruptions: ws.interrupt_loss ?? "",
+        coordination: ws.coordination_loss ?? "",
+        nightWork: ws.night_work ?? "",
+        adminRatio: ws.admin_ratio ?? "",
+        visibility: ws.visibility ?? "",
+        hoursLost: ws.hours_lost ?? "",
+        executionTime: ws.execution_time ?? "",
+        focusedWork: ws.focused_work ?? "",
+        strategicWork: ws.strategic_work ?? "",
+        weeklyCost: ws.estimated_cost ?? "",
+        yearlyCost: (ws.estimated_cost ?? 0) * 52,
+        oeiScore: ws.oei_score ?? "",
+        visibilityLevel: ws.visibility ?? "",
+      }),
+    });
+  } catch {
+    // no-cors — silent, never block the UX
+  }
+}
+
 export default function WidgetReceipt() {
   const [started, setStarted] = useState(false);
   const [muted, setMutedState] = useState(false);
@@ -229,8 +279,11 @@ export default function WidgetReceipt() {
       await typeLine({ text: `EMAIL: ${addr}`, kind: "item" }, 55);
       await sleep(200);
 
-      // Result for the next page (to be designed)
+      // Result for the results page
       const ws = calculateWorkSystem(answers, answers.role || "other");
+
+      // Send the collected data to the Google Sheet (fire-and-forget).
+      void submitToSheet(addr, ws);
 
       // Launch: bounce, then shoot up with a paper-scroll + ka-ching; register bops down
       if (!mounted.current) return;
