@@ -759,8 +759,8 @@ export default function WidgetReceipt() {
           style={{ transform: `rotate(-10deg) scale(${started ? 0.5 : 1})` }}
         >
           <Image src="/pop up.png" alt="" fill priority sizes="423px" className="object-contain" />
-          <div className="absolute inset-0 flex items-center justify-center px-[19%]">
-            <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-white text-[9cqw] drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)]">
+          <div className="absolute inset-0 flex -translate-x-[10px] items-center justify-center px-[19%]">
+            <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-white text-[6.5cqw] drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)]">
               Print your receipt!
             </span>
           </div>
