@@ -196,6 +196,15 @@
   animation: registerBop 2.2s linear forwards;
 }
 
+/* Print: hide chrome + CTA stickers so the receipt PDF is clean */
+@media print {
+  header,
+  footer,
+  [data-noprint] {
+    display: none !important;
+  }
+}
+
 /* Sticker peels/folds right→left on click (rotate stays via the `rotate` prop) */
 @keyframes stickerFold {
   0%   { transform: scaleX(1); }

@@ -65,23 +65,21 @@ export default function RootLayout({
       className={cn(quicksand.variable, spaceMono.variable, caveat.variable, 'font-sans')}
       suppressHydrationWarning
     >
-      <body className="text-foreground min-h-screen flex flex-col bg-white">
+      <body className="text-foreground h-screen overflow-hidden flex flex-col bg-white">
         <WidgetNavbar />
         <main className="flex-1 flex flex-col pt-[72px]">
           {children}
         </main>
-        <footer className="border-t border-white/50 bg-white/40 backdrop-blur-xl shadow-[0_-8px_30px_-14px_rgba(60,80,120,0.25)] py-2 text-center">
-          <div className="flex items-center justify-center gap-2 mb-0.5">
-            <Image
-              src="/Chambiar Logo.svg"
-              alt="Chambiar"
-              width={80}
-              height={24}
-              style={{ height: "auto" }}
-              className="object-contain opacity-60"
-            />
-          </div>
-          <p className="text-xs text-[#7c8aa6]">&copy; {new Date().getFullYear()} Chambiar</p>
+        <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 border-t border-white/50 bg-white/70 backdrop-blur-xl py-1.5 text-center">
+          <Image
+            src="/Chambiar Logo.svg"
+            alt="Chambiar"
+            width={56}
+            height={16}
+            style={{ height: "auto" }}
+            className="object-contain opacity-60"
+          />
+          <p className="text-[10px] text-[#7c8aa6]">&copy; {new Date().getFullYear()} Chambiar</p>
         </footer>
       </body>
     </html>

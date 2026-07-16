@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Volume2, VolumeX } from "lucide-react";
+import {
+  Volume2,
+  VolumeX,
+  Share2,
+  FileText,
+  Link as LinkIcon,
+  Linkedin,
+  Instagram,
+  Rss,
+} from "lucide-react";
 import { calculateWorkSystem } from "@/lib/workSystemCalculator";
 import {
   playKey,
@@ -113,13 +122,31 @@ type Line = {
 const KEY_COLS = 11;
 const KEY_ROWS_N = 4;
 const TOTAL_KEYS = KEY_COLS * KEY_ROWS_N;
-const KEY_VARIANTS = ["/key.png", "/key 2.png"];
+const KEY_VARIANTS = ["/key-white.png", "/key 2.png"];
 // Region rectangles as % of the register image (tweak to fit the grey keypad).
 const SCREEN = { left: "34.5%", top: "38.5%", width: "32.5%", height: "15.5%" };
 const KEYS = { left: "25%", top: "59%", width: "50%", height: "34%" };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Thumbtack drawn onto the downloaded PDF, in receipt CSS px.
+const PIN_W = 16;
+const PIN_ASPECT = 714 / 449; // thumbtack-trim.png
+
+async function fetchDataUrl(src: string): Promise<string | null> {
+  try {
+    const blob = await (await fetch(src)).blob();
+    return await new Promise<string | null>((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 // Google Apps Script endpoint (same one the old Share step used).
 const SHEET_ENDPOINT =
@@ -188,9 +215,12 @@ export default function WidgetReceipt() {
   const [result, setResult] = useState<ReturnType<typeof calculateWorkSystem> | null>(null);
   const [folding, setFolding] = useState(false);
   const [emailError, setEmailError] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const resolver = useRef<((v: string) => void) | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,6 +340,63 @@ export default function WidgetReceipt() {
     setStarted(true);
   };
 
+  const handleDownloadPdf = async () => {
+    const el = receiptRef.current;
+    if (!el) return;
+    setShareOpen(false);
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+    try {
+      const cssW = el.offsetWidth;
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        // Clone-only padding makes room for the pin. The live page is never
+        // touched, so the receipt doesn't flash during capture.
+        onclone: (_doc, node) => {
+          node.style.paddingTop = "62px";
+        },
+      });
+      // Receipt at half the page width so it reads small, but the page height
+      // hugs it so there's no dead space at the bottom.
+      const w = canvas.width * 0.5;
+      const h = canvas.height * 0.5;
+      const pad = w * 0.1;
+      const pageW = canvas.width;
+      const pageH = h + pad * 2;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [pageW, pageH],
+      });
+      const x0 = (pageW - w) / 2;
+      const y0 = pad;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", x0, y0, w, h);
+
+      // Pin goes straight onto the PDF — html2canvas won't rasterize an <img>
+      // injected into its clone, so drawing it here is what actually sticks.
+      const pinData = await fetchDataUrl("/thumbtack-trim.png");
+      if (pinData) {
+        const s = w / cssW; // CSS px -> PDF px
+        const pw = PIN_W * s;
+        pdf.addImage(
+          pinData,
+          "PNG",
+          x0 + (cssW / 2 - PIN_W / 2 - 50) * s,
+          y0 + 16 * s,
+          pw,
+          pw * PIN_ASPECT,
+        );
+      }
+      pdf.save("chambiar-work-receipt.pdf");
+    } catch {
+      // Capture failed — leave the on-screen receipt untouched.
+    }
+  };
+
   const toggleMute = () => {
     setMutedState((m) => {
       setMuted(!m);
@@ -412,25 +499,136 @@ export default function WidgetReceipt() {
 
     return (
       <div className="fixed inset-0 z-0 overflow-y-auto bg-[#eef1f5]">
+        {/* Share button (10px below the navbar) */}
+        <button
+          data-noprint
+          onClick={() => setShareOpen(true)}
+          className="fixed right-[3vw] top-[82px] z-50 flex items-center gap-2 rounded-full bg-[#103257] px-4 py-2 text-sm font-medium text-white shadow-md transition-colors hover:bg-[#1a4a7a]"
+        >
+          <Share2 className="h-4 w-4" />
+          {linkCopied ? "Copied!" : "Share"}
+        </button>
+
+        {/* Share modal — centered */}
+        {shareOpen && (
+          <div
+            data-noprint
+            onClick={() => setShareOpen(false)}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-2xl"
+            >
+              <div className="text-center text-base font-bold text-[#103257]">
+                Share your Work Receipt
+              </div>
+              <p className="mb-4 mt-1 text-center text-xs text-[#6b82a3]">
+                Download it or send someone the link
+              </p>
+
+              <button
+                onClick={handleDownloadPdf}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] px-4 py-3 text-sm font-medium text-[#103257] hover:bg-[#f1f5fb]"
+              >
+                <FileText className="h-4 w-4" /> Download as PDF
+              </button>
+              <button
+                onClick={async () => {
+                  const url = `${window.location.origin}/?ref=${Math.random()
+                    .toString(36)
+                    .slice(2, 8)}`;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                  } catch {}
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                  setShareOpen(false);
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#103257] px-4 py-3 text-sm font-medium text-white hover:bg-[#1a4a7a]"
+              >
+                <LinkIcon className="h-4 w-4" />{" "}
+                {linkCopied ? "Link copied!" : "Copy shareable link"}
+              </button>
+
+              <div className="mt-4 flex items-center justify-center gap-6 border-t border-[#e2e8f0] pt-4">
+                <a
+                  href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fworkreceipt.chambiar.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Share on LinkedIn"
+                  className="text-[#3A628F] transition-colors hover:text-[#103257]"
+                >
+                  <Linkedin className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://www.instagram.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="text-[#3A628F] transition-colors hover:text-[#103257]"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://substack.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Substack"
+                  className="text-[#3A628F] transition-colors hover:text-[#103257]"
+                >
+                  <Rss className="h-5 w-5" />
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Try Blue! sticker — top-right, links to Chambiar */}
         <a
           href="https://www.chambiar.ai/"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Try Blue — visit Chambiar"
-          onClick={() => setFolding(true)}
-          className="fixed right-[3vw] top-[116px] z-40 w-[min(115px,23vw)]"
+          aria-label="Try Blue — visit Chambiar" data-noprint
+          onClick={(e) => {
+            e.preventDefault();
+            if (folding) return;
+            setFolding(true);
+            window.setTimeout(() => {
+              window.location.href = "https://www.chambiar.ai/";
+            }, 600);
+          }}
+          className="fixed right-[calc(3vw+160px)] top-[316px] z-40 w-[min(115px,23vw)]"
         >
           <div
-            className={`relative aspect-square w-full rotate-[8deg] [container-type:size] ${
+            className={`relative aspect-square w-full rotate-[15deg] [container-type:size] ${
               folding ? "sticker-fold" : ""
             }`}
             style={{ filter: "drop-shadow(0 5px 5px rgba(0,0,0,0.25))" }}
           >
             <Image src="/Try Blue!.png" alt="Try Blue" fill sizes="150px" className="object-contain" />
             <div className="absolute inset-0 flex items-center justify-center pl-[6%] pr-[26%]">
-              <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-[#103257] text-[16cqw]">
+              <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-[#103257] text-[10.4cqw]">
                 Try<br />Blue!
+              </span>
+            </div>
+          </div>
+        </a>
+
+        {/* Blue mascot wave card — right middle, tucked under the Try Blue sticker */}
+        <a
+          href="https://www.chambiar.ai/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Join our pre-launch — visit Chambiar" data-noprint
+          className="fixed right-[1vw] top-[300px] z-30 w-[min(340px,58vw)] rotate-[2deg]"
+        >
+          <div className="relative aspect-square w-full [container-type:size]">
+            <Image src="/Blue Wave.png" alt="" fill sizes="340px" className="object-contain" />
+            <div className="absolute inset-0 flex items-center justify-center pl-[8%] pr-[42%]">
+              <span
+                className="text-center font-bold leading-[1.1] text-[#103257] text-[8.5cqw]"
+                style={{ fontFamily: "var(--font-hand), cursive" }}
+              >
+                Join our pre-launch!
               </span>
             </div>
           </div>
@@ -441,7 +639,7 @@ export default function WidgetReceipt() {
           href="https://www.chambiar.ai/"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Try our work engine — visit Chambiar"
+          aria-label="Try our work engine — visit Chambiar" data-noprint
           className="fixed bottom-[13vh] left-[3vw] z-40 w-[min(190px,38vw)]"
         >
           <div
@@ -451,20 +649,20 @@ export default function WidgetReceipt() {
             <Image src="/post it.png" alt="" fill sizes="190px" className="object-contain" />
             <div className="absolute inset-0 flex items-center justify-center px-[15%] pb-[10%] pt-[24%]">
               <span
-                className="text-center font-bold leading-[1.1] text-[#103257] text-[16cqw]"
+                className="text-center font-bold leading-[1.1] text-[#103257] text-[12.8cqw]"
                 style={{ fontFamily: "var(--font-hand), cursive" }}
               >
-                Like these insights? Try our work engine!
+                Like these insights - Try our work engine!
               </span>
             </div>
           </div>
         </a>
 
-        <div className="mx-auto flex w-full max-w-[420px] flex-col items-center px-4 pt-[102px] pb-20">
+        <div className="mx-auto flex w-full max-w-[640px] flex-col items-center px-4 pt-[102px] pb-20">
           {/* Printer slot (pulled up so the bar — not the transparent top — sits by the navbar) */}
           <div
-            className="relative z-20 w-[390px] max-w-[90vw]"
-            style={{ marginTop: "calc(min(390px, 90vw) * -0.42)" }}
+            className="relative z-20 w-[468px] max-w-[96vw]"
+            style={{ marginTop: "calc(min(468px, 96vw) * -0.42)" }}
           >
             <Image
               src="/slot.png"
@@ -478,17 +676,26 @@ export default function WidgetReceipt() {
 
           {/* Dispensed receipt — emerges from the slot's black line, in front */}
           <div
-            className="relative z-30 w-[86%] max-w-[280px]"
+            className="relative z-30 w-[82%] max-w-[380px] translate-x-[50px]"
             style={{
-              marginTop: "calc(min(390px, 90vw) * -0.49)",
-              filter: "drop-shadow(0 18px 30px rgba(60,70,90,0.32))",
+              marginTop: "calc(min(468px, 96vw) * -0.49 - 30px)",
+              filter: "drop-shadow(0 9px 20px rgba(60,70,90,0.18))",
             }}
           >
-            <div className="receipt-dispense rounded-[20px] bg-white px-5 pt-8 pb-8 font-mono text-[12px] leading-[1.7] text-[#1c1a17]">
+            <div
+              ref={receiptRef}
+              className="receipt-dispense relative px-6 pb-16 pt-10 font-mono text-[12px] leading-[1.7] text-[#1c1a17]"
+              style={{
+                backgroundImage: "url('/receipt-paper.png')",
+                backgroundSize: "100% 100%",
+                backgroundRepeat: "no-repeat",
+              }}
+            >
+              <div className="mx-auto w-full max-w-[215px] -translate-x-[42px]">
               <div className="text-center text-lg font-bold leading-tight tracking-tight text-[#103257]">
                 CHAMBIAR&apos;S<br />WORK RECEIPT
               </div>
-              <div className="mt-2 text-center font-bold text-[#6a6456]">{interp}</div>
+              <div className="mt-2 text-center text-[#6a6456]">{interp}</div>
 
               <div className="my-2 border-t border-solid border-[#cfc8b6]" />
               <div className="flex justify-between">
@@ -497,13 +704,13 @@ export default function WidgetReceipt() {
               </div>
 
               <div className="my-2 border-t border-solid border-[#cfc8b6]" />
-              <div className="text-[#6a6456]">TIME LOST — COORDINATION</div>
+              <div className="font-bold text-[#6a6456]">TIME LOST — COORDINATION</div>
               <div className="flex justify-between">
                 <span>This week</span>
                 <span className="font-bold">{result.hours_lost} hrs</span>
               </div>
 
-              <div className="mt-3 text-[#6a6456]">WHERE YOUR WEEK GOES</div>
+              <div className="mt-3 font-bold text-[#6a6456]">WHERE YOUR WEEK GOES</div>
               <div className="flex justify-between">
                 <span>Meetings</span>
                 <span>{tb.meetings} hrs</span>
@@ -559,6 +766,7 @@ export default function WidgetReceipt() {
                 <div className="mt-1 text-[10px] tracking-[0.25em] text-[#6a6456]">
                   CHAMBIAR.AI — {dateStr}
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -630,7 +838,7 @@ export default function WidgetReceipt() {
         }`}
       >
         <Image
-          src="/register-v2.png"
+          src="/register-v3.png"
           alt=""
           fill
           priority
@@ -666,12 +874,12 @@ export default function WidgetReceipt() {
               className={`w-full bg-transparent text-center font-mono text-[clamp(9px,1.5vw,15px)] outline-none ${
                 emailError
                   ? "text-[#b91c1c] placeholder-[#b91c1c]"
-                  : "text-[#33310f] placeholder-[#6f6a38]"
+                  : "text-[#17324f] placeholder-[#6f83a3]"
               }`}
             />
           ) : pending?.type === "options" ? (
             <div
-              className="flex w-full items-center justify-between gap-1 font-mono text-[#33310f]"
+              className="flex w-full items-center justify-between gap-1 font-mono text-[#17324f]"
               onWheel={(e) => {
                 const len = pending.q.options.length;
                 playKey();
@@ -686,7 +894,7 @@ export default function WidgetReceipt() {
                   pressRandomKey();
                   setOptIndex((i) => (i - 1 + len) % len);
                 }}
-                className="shrink-0 px-1 text-[#5a5620] hover:text-[#33310f]"
+                className="shrink-0 px-1 text-[#3a628f] hover:text-[#17324f]"
                 aria-label="Previous"
               >
                 ▲
@@ -705,14 +913,14 @@ export default function WidgetReceipt() {
                   pressRandomKey();
                   setOptIndex((i) => (i + 1) % len);
                 }}
-                className="shrink-0 px-1 text-[#5a5620] hover:text-[#33310f]"
+                className="shrink-0 px-1 text-[#3a628f] hover:text-[#17324f]"
                 aria-label="Next"
               >
                 ▼
               </button>
             </div>
           ) : (
-            <div className="w-full truncate text-center font-mono text-[clamp(9px,1.5vw,15px)] text-[#33310f]">
+            <div className="w-full truncate text-center font-mono text-[clamp(9px,1.5vw,15px)] text-[#17324f]">
               {lcd}
               {started && <span className="animate-pulse">▮</span>}
             </div>
@@ -732,14 +940,17 @@ export default function WidgetReceipt() {
         >
           {Array.from({ length: TOTAL_KEYS }).map((_, idx) => {
             const col = idx % KEY_COLS;
+            const row = Math.floor(idx / KEY_COLS);
+            const down = pressed === idx;
             // Drop the leftmost and rightmost columns (keep empty cells in place).
             if (col === 0 || col === KEY_COLS - 1) return <span key={idx} />;
-            const down = pressed === idx;
+            // The 3rd row's visible ends get the pink "Total (Enter)" keycap.
+            const isRowEnd = row === 2 && (col === 1 || col === KEY_COLS - 2);
             return (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={idx}
-                src={keyVariants[idx]}
+                src={isRowEnd ? "/key 3.png" : keyVariants[idx]}
                 alt=""
                 style={{ transform: down ? "scale(1.5) translateY(9%)" : "scale(1.5)" }}
                 className={`h-full w-full object-contain transition-transform duration-75 ${
