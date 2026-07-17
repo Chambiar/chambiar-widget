@@ -12,7 +12,12 @@ import {
   Instagram,
   Rss,
 } from "lucide-react";
-import { calculateWorkSystem } from "@/lib/workSystemCalculator";
+import {
+  calculateWorkSystem,
+  getAnswerTier,
+  partialHoursLost,
+  type AnswerTier,
+} from "@/lib/workSystemCalculator";
 import {
   playKey,
   playDing,
@@ -27,44 +32,14 @@ import {
 type Opt = { value: string; label: string };
 type Q = { id: string; heading: string; options: Opt[] };
 
+// Order and prompts are copy decisions; the `value` on every option is a key
+// the scoring layer reads, so those stay exactly as they are. Role runs last
+// because it only sets the hourly rate.
 const QUESTIONS: Q[] = [
   {
-    id: "role",
-    heading: "What best describes your role?",
-    options: [
-      { value: "founder", label: "Executive / Founder" },
-      { value: "manager", label: "Manager / Team Lead" },
-      { value: "product_eng", label: "Product / Engineering" },
-      { value: "sales", label: "Sales / Marketing" },
-      { value: "ic", label: "Individual Contributor" },
-      { value: "ops", label: "Operations / Admin" },
-      { value: "consultant", label: "Consultant / Independent" },
-    ],
-  },
-  {
-    id: "tools",
-    heading: "How many tools do you use daily?",
-    options: [
-      { value: "1-3", label: "1–3" },
-      { value: "4-6", label: "4–6" },
-      { value: "7-10", label: "7–10" },
-      { value: "10+", label: "10+" },
-    ],
-  },
-  {
-    id: "meetings",
-    heading: "Hours per week in meetings?",
-    options: [
-      { value: "lt5", label: "Less than 5" },
-      { value: "5-10", label: "5–10" },
-      { value: "10-15", label: "10–15" },
-      { value: "15-20", label: "15–20" },
-      { value: "20+", label: "20+" },
-    ],
-  },
-  {
     id: "interruptions",
-    heading: "How often are you interrupted?",
+    heading:
+      "Slack pings. Notifications buzz. How often does that pull you out of what you're actually doing?",
     options: [
       { value: "rarely", label: "Rarely" },
       { value: "sometimes", label: "Sometimes" },
@@ -74,7 +49,7 @@ const QUESTIONS: Q[] = [
   },
   {
     id: "coordination",
-    heading: "How often do you chase updates?",
+    heading: "How often are you the one chasing the update instead of doing the work?",
     options: [
       { value: "rarely", label: "Rarely" },
       { value: "sometimes", label: "Sometimes" },
@@ -84,38 +59,106 @@ const QUESTIONS: Q[] = [
   },
   {
     id: "night_work",
-    heading: "Hours per week outside normal hours?",
+    heading: "How many hours did work follow you home this week?",
     options: [
-      { value: "0", label: "0" },
-      { value: "1-3", label: "1–3" },
-      { value: "4-6", label: "4–6" },
-      { value: "7-10", label: "7–10" },
-      { value: "10+", label: "10+" },
+      { value: "0", label: "None" },
+      { value: "1-3", label: "1 to 3" },
+      { value: "4-6", label: "4 to 6" },
+      { value: "7-10", label: "7 to 10" },
+      { value: "10+", label: "10 or more" },
+    ],
+  },
+  {
+    id: "meetings",
+    heading: "How many hours has this week already lost to meetings?",
+    options: [
+      { value: "lt5", label: "Under 5" },
+      { value: "5-10", label: "5 to 10" },
+      { value: "10-15", label: "10 to 15" },
+      { value: "15-20", label: "15 to 20" },
+      { value: "20+", label: "20 or more" },
     ],
   },
   {
     id: "admin_ratio",
-    heading: "Focused work vs. admin?",
+    heading: "Be honest. When you look back, what actually got finished today?",
     options: [
-      { value: "mostly_focused", label: "Mostly focused" },
-      { value: "half", label: "About half & half" },
-      { value: "mostly_admin", label: "Mostly admin" },
+      { value: "mostly_focused", label: "Mostly focused work" },
+      { value: "half", label: "Half admin, half focus" },
+      { value: "mostly_admin", label: "Mostly admin and coordination" },
     ],
   },
   {
     id: "visibility",
-    heading: "Is your work recognized / visible?",
+    heading: "When you do something great, does it actually get seen?",
     options: [
       { value: "regularly", label: "Regularly" },
       { value: "sometimes", label: "Sometimes" },
       { value: "rarely", label: "Rarely" },
     ],
   },
+  {
+    id: "tools",
+    heading: "How many tabs and apps do you have open just to get one thing done?",
+    options: [
+      { value: "1-3", label: "1 to 3" },
+      { value: "4-6", label: "4 to 6" },
+      { value: "7-10", label: "7 to 10" },
+      { value: "10+", label: "More than 10" },
+    ],
+  },
+  {
+    id: "role",
+    heading: "What's closest to your role?",
+    options: [
+      { value: "founder", label: "Executive/Founder" },
+      { value: "manager", label: "Manager/Team lead" },
+      { value: "product_eng", label: "Product/Engineering" },
+      { value: "sales", label: "Sales/Marketing" },
+      { value: "ic", label: "Individual contributor" },
+      { value: "ops", label: "Operations/Admin" },
+      { value: "consultant", label: "Consultant/Independent" },
+    ],
+  },
 ];
+
+// One dry line after an answer that cost something. Aimed at the system, not
+// the person. Good answers get nothing, so the receipt stays quiet when
+// there's nothing to charge for.
+const REACTIONS: Record<string, Partial<Record<AnswerTier, string>>> = {
+  interruptions: {
+    warning: "That's the system talking over you.",
+    bad: "Every one of those has a price.",
+  },
+  coordination: {
+    warning: "That's time the process borrowed.",
+    bad: "You're doing the system's job for it.",
+  },
+  night_work: {
+    warning: "The week ran over. It'll do it again.",
+    bad: "That isn't overtime, it's overflow.",
+  },
+  meetings: {
+    warning: "That's a lot of week to book out.",
+    bad: "There's barely a week left after that.",
+  },
+  admin_ratio: {
+    warning: "Half the day went to running the day.",
+    bad: "The work about work won.",
+  },
+  visibility: {
+    warning: "Invisible work still costs the same.",
+    bad: "It happened. Nobody logged it.",
+  },
+  tools: {
+    warning: "Every switch costs you something.",
+    bad: "That isn't a stack, it's a commute.",
+  },
+};
 
 type Line = {
   text: string;
-  kind: "head" | "rule" | "meta" | "item" | "q" | "total" | "note";
+  kind: "head" | "rule" | "meta" | "item" | "q" | "total" | "note" | "react";
 };
 
 // Keyboard grid — fills the grey keypad region without overlap.
@@ -127,8 +170,29 @@ const KEY_VARIANTS = ["/key-white.png", "/key 2.png"];
 const SCREEN = { left: "34.5%", top: "38.5%", width: "32.5%", height: "15.5%" };
 const KEYS = { left: "25%", top: "59%", width: "50%", height: "34%" };
 
+// LCD type is sized against the register (container queries), not the viewport,
+// so it tracks the art at every width — 1.7cqw reproduces the old 15px at the
+// register's 880px max. The clamp floor keeps it legible once the register
+// shrinks to phone width, where strict proportion would land near 6px.
+// No `truncate`: labels wrap to a second line instead of losing their tails.
+const LCD_TEXT = "text-[clamp(9px,1.7cqw,15px)] leading-[1.15]";
+// The screen is only ~33px tall on a phone, so an arrow can't hold a 44px box
+// inside it. The pseudo-element pushes the tappable area out onto the bezel —
+// visual size unchanged, hit area big enough for a thumb.
+const ARROW_HIT =
+  "relative shrink-0 px-[0.6cqw] text-[clamp(13px,1.5cqw,16px)] leading-none " +
+  "after:absolute after:-inset-x-[10px] after:-inset-y-[16px] after:content-['']";
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Gesture tuning. A trackpad flick emits dozens of wheel events, so steps are
+// gated on distance travelled plus a cooldown — otherwise one flick spins the
+// whole option list. SWIPE_PX is deliberately larger than a tap's jitter so
+// tapping to confirm never registers as a swipe.
+const WHEEL_PX = 40;
+const SWIPE_PX = 26;
+const STEP_MS = 90;
 
 // Thumbtack drawn onto the downloaded PDF, in receipt CSS px. thumbtack-shadow.png
 // is thumbtack-trim.png (PIN_SRC) with a drop shadow baked into the pixels —
@@ -215,6 +279,8 @@ export default function WidgetReceipt() {
   const [email, setEmail] = useState("");
   const [pressed, setPressed] = useState<number | null>(null);
   const [optIndex, setOptIndex] = useState(0);
+  // Mirror of the flow's local `answers`, so the running total can re-render.
+  const [answered, setAnswered] = useState<Record<string, string>>({});
   const [overflow, setOverflow] = useState(0);
   const [launching, setLaunching] = useState(false);
   const [done, setDone] = useState(false);
@@ -230,6 +296,9 @@ export default function WidgetReceipt() {
   const mounted = useRef(true);
   const resolver = useRef<((v: string) => void) | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wheelAcc = useRef(0);
+  const stepLock = useRef(0);
+  const touchY = useRef<number | null>(null);
 
   // Deterministic pseudo-random keycap pattern (stable across SSR + client).
   const keyVariants = useMemo(
@@ -245,6 +314,16 @@ export default function WidgetReceipt() {
     setPressed(Math.floor(Math.random() * TOTAL_KEYS));
     if (pressTimer.current) clearTimeout(pressTimer.current);
     pressTimer.current = setTimeout(() => mounted.current && setPressed(null), 90);
+  };
+
+  // Drives the on-screen arrows. The window listeners step through their own
+  // throttled path, since wheel and touch arrive as streams rather than taps.
+  const bump = (dir: 1 | -1) => {
+    if (pending?.type !== "options") return;
+    const len = pending.q.options.length;
+    setOptIndex((i) => (i + dir + len) % len);
+    playKey();
+    pressRandomKey();
   };
 
   const typeLine = async (line: Line, cps = 42) => {
@@ -300,9 +379,19 @@ export default function WidgetReceipt() {
         const value = await waitFor<string>({ type: "options", q });
         if (!mounted.current) return;
         answers[q.id] = value;
+        setAnswered({ ...answers }); // drives the running total below
         const label = q.options.find((o) => o.value === value)?.label ?? value;
         playDing();
         await typeLine({ text: `> ${label}`, kind: "item" }, 55);
+
+        // Anything that cost something gets a line. "good" prints clean.
+        const tier = getAnswerTier(q.id, value);
+        const reaction = tier && tier !== "good" ? REACTIONS[q.id]?.[tier] : undefined;
+        if (reaction) {
+          if (!mounted.current) return;
+          await typeLine({ text: reaction, kind: "react" }, 60);
+        }
+
         await printInstant({ text: "", kind: "rule" });
         await sleep(120);
       }
@@ -432,42 +521,85 @@ export default function WidgetReceipt() {
     setOptIndex(0);
   }, [pending]);
 
-  // Global keys: Enter starts / confirms, arrows scroll the options.
+  // Global input while a question is up: arrows / wheel / swipe move the
+  // selector, Enter confirms. These listen on window rather than the LCD —
+  // the screen is ~120px wide on a phone, far too small to aim a gesture at.
   useEffect(() => {
+    if (!started || pending?.type !== "options") return;
+    const len = pending.q.options.length;
+
+    const step = (dir: 1 | -1) => {
+      setOptIndex((i) => (i + dir + len) % len);
+      playKey();
+      pressRandomKey();
+    };
+    // Wheel and swipe arrive as streams; keys arrive one at a time already.
+    const gestureStep = (dir: 1 | -1) => {
+      const now = performance.now();
+      if (now - stepLock.current < STEP_MS) return;
+      stepLock.current = now;
+      step(dir);
+    };
+
     const onKey = (e: KeyboardEvent) => {
-      if (!started) {
-        if (e.key === "Enter") begin();
-        return;
-      }
-      if (pending?.type === "options") {
-        const len = pending.q.options.length;
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setOptIndex((i) => (i - 1 + len) % len);
-          playKey();
-          pressRandomKey();
-        } else if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setOptIndex((i) => (i + 1) % len);
-          playKey();
-          pressRandomKey();
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          resolvePending(pending.q.options[optIndex].value);
-        }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        step(-1);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        step(1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        resolvePending(pending.q.options[optIndex].value);
       }
     };
+
+    const onWheel = (e: WheelEvent) => {
+      wheelAcc.current += e.deltaY;
+      if (Math.abs(wheelAcc.current) < WHEEL_PX) return;
+      const dir = wheelAcc.current > 0 ? 1 : -1;
+      wheelAcc.current = 0;
+      gestureStep(dir);
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchY.current = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchY.current === null) return;
+      const y = e.touches[0]?.clientY ?? 0;
+      const dy = y - touchY.current;
+      if (Math.abs(dy) < SWIPE_PX) return;
+      touchY.current = y;
+      gestureStep(dy < 0 ? 1 : -1); // swipe up reads as "next", like a real reel
+    };
+    const onTouchEnd = () => {
+      touchY.current = null;
+    };
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started, pending, optIndex]);
+
+  const runningHours = partialHoursLost(answered);
 
   // Measure how much of the receipt has printed past the navbar (locked height).
   useEffect(() => {
     const el = contentRef.current;
     const inner = innerRef.current;
     if (el && inner) setOverflow(Math.max(0, inner.offsetHeight - el.clientHeight));
-  }, [lines, typing]);
+  }, [lines, typing, runningHours]);
 
   // Start on the first interaction anywhere — no need to click the sticker.
   useEffect(() => {
@@ -484,7 +616,9 @@ export default function WidgetReceipt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started]);
 
-  const lcd = typing?.text ?? (started ? "READY" : "SCROLL OR TYPE TO BEGIN");
+  // "type" promised a keyboard the phone doesn't have, and scroll alone never
+  // confirmed an answer — it only ever moved the selector.
+  const lcd = typing?.text ?? (started ? "READY" : "SCROLL OR TAP TO BEGIN");
 
   // Results page — the full receipt dispenses out of the slot.
   if (done && result) {
@@ -604,7 +738,7 @@ export default function WidgetReceipt() {
               window.location.href = "https://www.chambiar.ai/";
             }, 600);
           }}
-          className="fixed right-[calc(3vw+160px)] top-[316px] z-40 w-[min(115px,23vw)]"
+          className="fixed right-[1vw] top-[316px] z-40 w-[min(115px,22vw)] lg:right-[calc(3vw+160px)] lg:w-[min(115px,23vw)]"
         >
           <div
             className={`relative aspect-square w-full rotate-[15deg] [container-type:size] ${
@@ -627,7 +761,7 @@ export default function WidgetReceipt() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Join our pre-launch — visit Chambiar" data-noprint
-          className="fixed right-[1vw] top-[300px] z-30 w-[min(340px,58vw)] rotate-[2deg]"
+          className="fixed right-[1vw] top-[300px] z-30 w-[min(340px,24vw)] rotate-[2deg] lg:w-[min(340px,58vw)]"
         >
           <div className="relative aspect-square w-full [container-type:size]">
             <Image src="/Blue Wave.png" alt="" fill sizes="340px" className="object-contain" />
@@ -648,7 +782,7 @@ export default function WidgetReceipt() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Try our work engine — visit Chambiar" data-noprint
-          className="fixed bottom-[13vh] left-[3vw] z-40 w-[min(190px,38vw)]"
+          className="fixed bottom-[13vh] left-[2vw] z-40 w-[min(190px,26vw)] lg:left-[3vw] lg:w-[min(190px,38vw)]"
         >
           <div
             className="relative aspect-square w-full -rotate-[4deg] [container-type:size]"
@@ -682,9 +816,17 @@ export default function WidgetReceipt() {
             />
           </div>
 
-          {/* Dispensed receipt — emerges from the slot's black line, in front */}
+          {/* Dispensed receipt — emerges from the slot's black line, in front.
+              Everything here is a ratio of the slot rather than a pixel offset.
+              The old `w-[82%] max-w-[380px]` measured against the text column,
+              not the slot, so below 380px the receipt stopped tracking the art;
+              `-translate-x-[42px]` then compensated for centring maths that only
+              balanced at exactly 380px, and the text walked off the paper's left
+              edge on a phone. 0.812 and 0.107 are those same desktop offsets
+              (380/468, 50/468) expressed against the slot, so the desktop
+              rendering is unchanged and every narrower width now follows it. */}
           <div
-            className="relative z-30 w-[82%] max-w-[380px] translate-x-[50px]"
+            className="relative z-30 w-[calc(min(468px,96vw)*0.812)] translate-x-[calc(min(468px,96vw)*0.107)] [container-type:inline-size]"
             style={{
               marginTop: "calc(min(468px, 96vw) * -0.49 - 30px)",
               filter: "drop-shadow(0 9px 20px rgba(60,70,90,0.18))",
@@ -692,15 +834,17 @@ export default function WidgetReceipt() {
           >
             <div
               ref={receiptRef}
-              className="receipt-dispense relative px-6 pb-16 pt-10 font-mono text-[12px] leading-[1.7] text-[#1c1a17]"
+              className="receipt-dispense relative pb-[16.8cqw] pt-[10.5cqw] font-mono text-[clamp(9px,3.16cqw,12px)] leading-[1.7] text-[#1c1a17]"
               style={{
                 backgroundImage: "url('/receipt-paper.png')",
                 backgroundSize: "100% 100%",
                 backgroundRepeat: "no-repeat",
               }}
             >
-              <div className="mx-auto w-full max-w-[215px] -translate-x-[42px]">
-              <div className="text-center text-lg font-bold leading-tight tracking-tight text-[#103257]">
+              {/* Text column, as a fraction of the paper: 215/380 wide, starting
+                  40.5/380 in — i.e. exactly where it sat on desktop. */}
+              <div className="ml-[10.66%] w-[56.58%]">
+              <div className="text-center text-[clamp(13px,4.74cqw,18px)] font-bold leading-tight tracking-tight text-[#103257]">
                 CHAMBIAR&apos;S<br />WORK RECEIPT
               </div>
               <div className="mt-2 text-center text-[#6a6456]">{interp}</div>
@@ -736,9 +880,13 @@ export default function WidgetReceipt() {
               {result.breakdown_categories.map((cat) => (
                 <div key={cat.title} className="mb-2">
                   <div className="font-bold text-[#103257]">{cat.title}</div>
+                  {/* No `truncate`: "Admin vs focused" + "Mostly focused [OK]"
+                      overruns this column at every width, desktop included, so
+                      truncating just hid the label's tail everywhere. Letting it
+                      wrap is both honest and how a real receipt behaves. */}
                   {cat.metrics.map((m) => (
                     <div key={m.label} className="flex justify-between gap-2">
-                      <span className="truncate">{m.label}</span>
+                      <span className="min-w-0">{m.label}</span>
                       <span className="shrink-0">
                         {m.value} [{mark(m.status)}]
                       </span>
@@ -758,20 +906,20 @@ export default function WidgetReceipt() {
               </div>
 
               <div className="my-2 border-t border-solid border-[#cfc8b6]" />
-              <div className="flex justify-between text-[15px] font-bold text-[#12a468]">
+              <div className="flex justify-between text-[clamp(11px,3.95cqw,15px)] font-bold text-[#12a468]">
                 <span>TOTAL</span>
                 <span>${result.estimated_cost}/wk</span>
               </div>
 
               <div className="mt-4 flex flex-col items-center">
                 <div
-                  className="h-10 w-[72%]"
+                  className="h-[10.5cqw] max-h-10 w-[72%]"
                   style={{
                     background:
                       "repeating-linear-gradient(90deg, #1c1a17 0 2px, transparent 2px 4px, #1c1a17 4px 5px, transparent 5px 8px, #1c1a17 8px 10px, transparent 10px 11px, #1c1a17 11px 14px, transparent 14px 16px)",
                   }}
                 />
-                <div className="mt-1 text-[10px] tracking-[0.25em] text-[#6a6456]">
+                <div className="mt-1 text-[clamp(7.5px,2.63cqw,10px)] tracking-[0.25em] text-[#6a6456]">
                   CHAMBIAR.AI — {dateStr}
                 </div>
               </div>
@@ -794,9 +942,13 @@ export default function WidgetReceipt() {
         {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
       </button>
 
-      {/* Receipt paper — grows up from the slot, locks at the navbar */}
+      {/* Receipt paper — grows up from the slot, locks at the navbar. Its width
+          tracks the register's paper feed (300px at desktop, ~130px on a
+          phone), so the type inside must scale with it via container queries —
+          held at 12px it printed ~12 chars per line and every reaction wrapped
+          to five lines. */}
       <div
-        className={`absolute left-1/2 -translate-x-1/2 bottom-[min(332px,36vw)] z-10 w-[min(300px,34vw)] ${
+        className={`absolute left-1/2 -translate-x-1/2 bottom-[min(332px,36vw)] z-10 w-[min(300px,34vw)] [container-type:inline-size] ${
           launching ? "receipt-launch" : ""
         }`}
         style={{ filter: "drop-shadow(0 16px 28px rgba(60,70,90,0.4))" }}
@@ -820,7 +972,7 @@ export default function WidgetReceipt() {
         {/* Active paper — bottom-anchored, grows up, caps at the navbar */}
         <div
           ref={contentRef}
-          className="receipt-torn-top flex flex-col justify-end overflow-hidden px-5 pt-7 pb-24 font-mono text-[12px] leading-[1.7] text-[#1c1a17]"
+          className="receipt-torn-top flex flex-col justify-end overflow-hidden px-[clamp(10px,6.6cqw,20px)] pt-7 pb-24 font-mono text-[clamp(9px,4cqw,12px)] leading-[1.7] text-[#1c1a17]"
           style={{
             maxHeight: "calc(100vh - 80px - min(332px, 36vw))",
             background: "#f4efe3",
@@ -833,6 +985,19 @@ export default function WidgetReceipt() {
                   <ReceiptRow key={i} line={l} />
                 ))}
                 {typing && <ReceiptRow line={typing} caret />}
+
+                {/* Running total. Hours rather than dollars: the rate comes
+                    from role, which is the last question, so a cost here would
+                    have to invent one and then jump when role lands. Only the
+                    four inputs that feed hours_lost move this, so it holds
+                    steady through the after-hours / admin / visibility
+                    questions rather than ticking on every answer. */}
+                {runningHours > 0 && (
+                  <div className="mt-2 flex justify-between border-t border-solid border-[#bcb49f] pt-1 font-bold text-[#103257]">
+                    <span>RUNNING TOTAL</span>
+                    <span>{runningHours} hrs</span>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -841,7 +1006,7 @@ export default function WidgetReceipt() {
 
       {/* Register machine (sits in front of the paper) */}
       <div
-        className={`absolute left-1/2 bottom-0 -translate-x-1/2 z-20 w-[min(880px,96vw)] aspect-[16/9] ${
+        className={`absolute left-1/2 bottom-0 -translate-x-1/2 z-20 w-[min(880px,96vw)] aspect-[16/9] [container-type:inline-size] ${
           launching ? "register-bop" : ""
         }`}
       >
@@ -867,8 +1032,11 @@ export default function WidgetReceipt() {
           </div>
         )}
 
-        {/* LCD screen — where the questions are answered (scroll / type + Enter) */}
-        <div className="absolute z-30 flex items-center justify-center px-[2%]" style={SCREEN}>
+        {/* LCD screen — where the questions are answered (scroll / tap + Enter) */}
+        <div
+          className="absolute z-30 flex items-center justify-center overflow-hidden px-[2%]"
+          style={SCREEN}
+        >
           {pending?.type === "email" ? (
             <input
               autoFocus
@@ -879,58 +1047,48 @@ export default function WidgetReceipt() {
               }}
               onKeyDown={onEmailKey}
               placeholder={emailError ? "enter a valid email ⏎" : "you@work.com  ⏎"}
-              className={`w-full bg-transparent text-center font-mono text-[clamp(9px,1.5vw,15px)] outline-none ${
+              className={`w-full bg-transparent text-center font-mono ${LCD_TEXT} outline-none ${
                 emailError
                   ? "text-[#b91c1c] placeholder-[#b91c1c]"
                   : "text-[#17324f] placeholder-[#6f83a3]"
               }`}
             />
           ) : pending?.type === "options" ? (
-            <div
-              className="flex w-full items-center justify-between gap-1 font-mono text-[#17324f]"
-              onWheel={(e) => {
-                const len = pending.q.options.length;
-                playKey();
-                pressRandomKey();
-                setOptIndex((i) => (e.deltaY > 0 ? (i + 1) % len : (i - 1 + len) % len));
-              }}
-            >
+            // Wheel/swipe are handled on window (see the input effect) so the
+            // gesture isn't confined to this ~120px-wide screen on a phone.
+            <div className="flex w-full items-center justify-between gap-[0.5cqw] font-mono text-[#17324f]">
               <button
-                onClick={() => {
-                  const len = pending.q.options.length;
-                  playKey();
-                  pressRandomKey();
-                  setOptIndex((i) => (i - 1 + len) % len);
-                }}
-                className="shrink-0 px-1 text-[#3a628f] hover:text-[#17324f]"
-                aria-label="Previous"
+                onClick={() => bump(-1)}
+                className={`${ARROW_HIT} text-[#3a628f] hover:text-[#17324f]`}
+                aria-label="Previous option"
               >
                 ▲
               </button>
               <button
                 onClick={() => resolvePending(pending.q.options[optIndex].value)}
-                className="min-w-0 flex-1 truncate text-center text-[clamp(9px,1.5vw,15px)]"
-                title="Enter to confirm"
+                className={`min-w-0 flex-1 text-center ${LCD_TEXT}`}
+                title="Tap or press Enter to confirm"
               >
                 {pending.q.options[optIndex]?.label}
               </button>
               <button
-                onClick={() => {
-                  const len = pending.q.options.length;
-                  playKey();
-                  pressRandomKey();
-                  setOptIndex((i) => (i + 1) % len);
-                }}
-                className="shrink-0 px-1 text-[#3a628f] hover:text-[#17324f]"
-                aria-label="Next"
+                onClick={() => bump(1)}
+                className={`${ARROW_HIT} text-[#3a628f] hover:text-[#17324f]`}
+                aria-label="Next option"
               >
                 ▼
               </button>
             </div>
           ) : (
-            <div className="w-full truncate text-center font-mono text-[clamp(9px,1.5vw,15px)] text-[#17324f]">
-              {lcd}
-              {started && <span className="animate-pulse">▮</span>}
+            // Bottom-anchored so the newest characters stay on screen. The
+            // prompts run ~100 chars and the LCD holds ~2 lines on a phone, so
+            // anything top-anchored would type its way off the screen and sit
+            // there looking frozen. The receipt below carries the full text.
+            <div className="flex h-full w-full flex-col justify-end overflow-hidden py-[1%]">
+              <div className={`text-center font-mono ${LCD_TEXT} text-[#17324f]`}>
+                {lcd}
+                {started && <span className="animate-pulse">▮</span>}
+              </div>
             </div>
           )}
         </div>
@@ -1015,11 +1173,18 @@ function ReceiptRow({ line, caret }: { line: Line; caret?: boolean }) {
   if (line.kind === "rule")
     return <div aria-hidden className="my-1.5 border-t border-solid border-[#bcb49f]" />;
   if (line.kind === "head")
-    return <div className={`${base} text-center text-lg font-bold tracking-tight`}>{line.text}</div>;
+    return <div className={`${base} text-center text-[clamp(13px,6cqw,18px)] font-bold tracking-tight`}>{line.text}</div>;
   if (line.kind === "meta")
     return <div className={`${base} text-center text-[#6a6456]`}>{line.text}</div>;
   if (line.kind === "note")
     return <div className={`${base} text-center text-[#8a8577] py-2`}>{line.text}</div>;
+  if (line.kind === "react")
+    return (
+      <div className={`${base} pl-2 text-[#8a8577]`}>
+        {line.text}
+        {caret && <span className="animate-pulse">▌</span>}
+      </div>
+    );
   if (line.kind === "q")
     return (
       <div className={`${base} font-bold text-[#103257] mt-1`}>
@@ -1029,7 +1194,7 @@ function ReceiptRow({ line, caret }: { line: Line; caret?: boolean }) {
     );
   if (line.kind === "total")
     return (
-      <div className={`${base} font-bold text-[#12a468] text-[14px]`}>
+      <div className={`${base} font-bold text-[#12a468] text-[clamp(10px,4.6cqw,14px)]`}>
         {line.text}
         {caret && <span className="animate-pulse">▌</span>}
       </div>

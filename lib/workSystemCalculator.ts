@@ -238,7 +238,60 @@ function calculateOEI(answers: RawAnswers): number {
   return Math.round(clamp(oei, 10, 95));
 }
 
-// ─── Step 5: Breakdown Categories ───────────────────────────────────
+// ─── Step 5: Answer Tiers ───────────────────────────────────────────
+
+export type AnswerTier = "good" | "warning" | "bad";
+
+/**
+ * The good/warning/bad tier for a single answer. These are the exact
+ * thresholds getBreakdownCategories has always applied, lifted out so the
+ * quiz's reaction lines and the final breakdown read from one place and can't
+ * drift. Falling through to "bad" on a missing answer preserves the original
+ * behaviour. Returns null for inputs that carry no tier (role only sets rate).
+ */
+export function getAnswerTier(id: string, value: string | undefined): AnswerTier | null {
+  switch (id) {
+    case "meetings":
+      return value === "lt5" || value === "5-10" ? "good" : value === "10-15" ? "warning" : "bad";
+    case "tools":
+      return value === "1-3" ? "good" : value === "4-6" ? "warning" : "bad";
+    case "interruptions":
+      return value === "rarely" ? "good" : value === "sometimes" ? "warning" : "bad";
+    case "coordination":
+      return value === "rarely" ? "good" : value === "sometimes" ? "warning" : "bad";
+    case "night_work": {
+      const n = getNightWork(value ?? "");
+      return n === 0 ? "good" : n <= 3 ? "warning" : "bad";
+    }
+    case "admin_ratio":
+      return value === "mostly_focused" ? "good" : value === "half" ? "warning" : "bad";
+    case "visibility": {
+      // Mirrors the score → level → status chain the breakdown uses.
+      const s = getVisibilityScore(value ?? "");
+      return s >= 0.7 ? "good" : s >= 0.3 ? "warning" : "bad";
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Hours lost from the answers collected so far, for the quiz's running total.
+ * Only the four inputs that actually feed rawHoursLost count, and only once
+ * answered — calculateWorkSystem substitutes averages for missing values,
+ * which would open the running total at 21 hrs before a single question. Once
+ * all four are in, this equals `hours_lost` exactly.
+ */
+export function partialHoursLost(answers: RawAnswers): number {
+  let raw = 0;
+  if (answers.tools) raw += getSystemLoss(answers.tools);
+  if (answers.meetings) raw += getMeetingHours(answers.meetings);
+  if (answers.interruptions) raw += getInterruptLoss(answers.interruptions);
+  if (answers.coordination) raw += getCoordinationLoss(answers.coordination);
+  return Math.min(Math.round(raw), 32);
+}
+
+// ─── Step 6: Breakdown Categories ───────────────────────────────────
 
 function getBreakdownCategories(
   answers: RawAnswers,
@@ -246,55 +299,29 @@ function getBreakdownCategories(
   nightWork: number,
   visibility: VisibilityLevel,
 ): BreakdownCategory[] {
-  // Meeting status
-  const meetingStatus = (answers.meetings === "lt5" || answers.meetings === "5-10") ? "good"
-    : answers.meetings === "10-15" ? "warning" : "bad";
-
-  // Tools status
-  const toolStatus = answers.tools === "1-3" ? "good"
-    : answers.tools === "4-6" ? "warning" : "bad";
-
-  // Interruption status
-  const intStatus = answers.interruptions === "rarely" ? "good"
-    : answers.interruptions === "sometimes" ? "warning" : "bad";
-
-  // Coordination status
-  const coordStatus = answers.coordination === "rarely" ? "good"
-    : answers.coordination === "sometimes" ? "warning" : "bad";
-
-  // Night work status
-  const nightStatus = nightWork === 0 ? "good"
-    : nightWork <= 3 ? "warning" : "bad";
-
-  // Visibility status
-  const visStatus = visibility === "high" ? "good"
-    : visibility === "moderate" ? "warning" : "bad";
-
-  // Admin status
-  const adminStatus = answers.admin_ratio === "mostly_focused" ? "good"
-    : answers.admin_ratio === "half" ? "warning" : "bad";
+  const tier = (id: string) => getAnswerTier(id, answers[id]) as AnswerTier;
 
   return [
     {
       title: "Coordination Load",
       metrics: [
-        { label: "Meetings", value: `${timeBreakdown.meetings} hrs/wk`, status: meetingStatus as "good" | "warning" | "bad" },
-        { label: "Tools", value: answers.tools ?? "—", status: toolStatus as "good" | "warning" | "bad" },
-        { label: "Chasing updates", value: capitalize(answers.coordination ?? "—"), status: coordStatus as "good" | "warning" | "bad" },
+        { label: "Meetings", value: `${timeBreakdown.meetings} hrs/wk`, status: tier("meetings") },
+        { label: "Tools", value: answers.tools ?? "—", status: tier("tools") },
+        { label: "Chasing updates", value: capitalize(answers.coordination ?? "—"), status: tier("coordination") },
       ],
     },
     {
       title: "Focus Disruption",
       metrics: [
-        { label: "Interruptions", value: capitalize(answers.interruptions ?? "—"), status: intStatus as "good" | "warning" | "bad" },
-        { label: "Admin vs focused", value: formatAdminLabel(answers.admin_ratio), status: adminStatus as "good" | "warning" | "bad" },
+        { label: "Interruptions", value: capitalize(answers.interruptions ?? "—"), status: tier("interruptions") },
+        { label: "Admin vs focused", value: formatAdminLabel(answers.admin_ratio), status: tier("admin_ratio") },
       ],
     },
     {
       title: "Work Impact",
       metrics: [
-        { label: "After-hours work", value: nightWork === 0 ? "None" : `${nightWork} hrs/wk`, status: nightStatus as "good" | "warning" | "bad" },
-        { label: "Visibility", value: capitalize(visibility), status: visStatus as "good" | "warning" | "bad" },
+        { label: "After-hours work", value: nightWork === 0 ? "None" : `${nightWork} hrs/wk`, status: tier("night_work") },
+        { label: "Visibility", value: capitalize(visibility), status: tier("visibility") },
       ],
     },
   ];
