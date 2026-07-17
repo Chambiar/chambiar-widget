@@ -70,7 +70,7 @@ export default function RootLayout({
         <main className="flex-1 flex flex-col pt-[72px]">
           {children}
         </main>
-        <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 border-t border-white/50 bg-white/70 backdrop-blur-xl py-1.5 text-center">
+        <footer className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-center gap-2 border-t border-white/50 bg-white/70 backdrop-blur-xl py-1.5 text-center">
           <Image
             src="/Chambiar Logo.svg"
             alt="Chambiar"

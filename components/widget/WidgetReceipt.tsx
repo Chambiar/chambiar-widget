@@ -130,9 +130,15 @@ const KEYS = { left: "25%", top: "59%", width: "50%", height: "34%" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Thumbtack drawn onto the downloaded PDF, in receipt CSS px.
+// Thumbtack drawn onto the downloaded PDF, in receipt CSS px. thumbtack-shadow.png
+// is thumbtack-trim.png (PIN_SRC) with a drop shadow baked into the pixels —
+// jsPDF draws a raw PNG and can't apply a CSS filter. The blur is oversized at
+// source scale because the pin renders ~28x smaller than the art. PIN_OFF locates
+// the pin within that sheet so it still lands at PIN_W wide in the same spot.
 const PIN_W = 16;
-const PIN_ASPECT = 714 / 449; // thumbtack-trim.png
+const PIN_SRC = { w: 449, h: 714 };
+const PIN_SHEET = { w: 749, h: 1014 };
+const PIN_OFF = { x: 130, y: 105 }; // where the pin sits inside PIN_SHEET
 
 async function fetchDataUrl(src: string): Promise<string | null> {
   try {
@@ -378,22 +384,24 @@ export default function WidgetReceipt() {
 
       // Pin goes straight onto the PDF — html2canvas won't rasterize an <img>
       // injected into its clone, so drawing it here is what actually sticks.
-      const pinData = await fetchDataUrl("/thumbtack-trim.png");
+      const pinData = await fetchDataUrl("/thumbtack-shadow.png");
       if (pinData) {
         const s = w / cssW; // CSS px -> PDF px
-        const pw = PIN_W * s;
+        const k = (PIN_W / PIN_SRC.w) * s; // pin source px -> PDF px
+        const pinX = x0 + (cssW / 2 - PIN_W / 2 - 50) * s;
+        const pinY = y0 + 16 * s;
         pdf.addImage(
           pinData,
           "PNG",
-          x0 + (cssW / 2 - PIN_W / 2 - 50) * s,
-          y0 + 16 * s,
-          pw,
-          pw * PIN_ASPECT,
+          pinX - PIN_OFF.x * k,
+          pinY - PIN_OFF.y * k,
+          PIN_SHEET.w * k,
+          PIN_SHEET.h * k,
         );
       }
       pdf.save("chambiar-work-receipt.pdf");
-    } catch {
-      // Capture failed — leave the on-screen receipt untouched.
+    } catch (err) {
+      console.error("[work-receipt] PDF export failed:", err);
     }
   };
 
@@ -670,7 +678,7 @@ export default function WidgetReceipt() {
               width={1080}
               height={1080}
               priority
-              className="h-auto w-full"
+              className="h-auto w-full drop-shadow-[0_14px_24px_rgba(40,55,85,0.28)]"
             />
           </div>
 
@@ -842,7 +850,7 @@ export default function WidgetReceipt() {
           alt=""
           fill
           priority
-          className="object-contain pointer-events-none select-none"
+          className="object-contain pointer-events-none select-none drop-shadow-[0_16px_28px_rgba(40,55,85,0.3)]"
         />
 
         {/* Email sticker — stuck flat on the register's top-left, like a real sticker */}
@@ -963,17 +971,38 @@ export default function WidgetReceipt() {
 
       </div>
 
-      {/* Pop-up sticker — angled top-left; shrinks 50% once printing starts */}
-      <div className="pointer-events-none absolute left-[2vw] top-[88px] z-40 animate-slow-float">
-        <div
-          className="relative aspect-square w-[min(423px,34.6vw)] origin-top-left transition-transform duration-500 [container-type:size]"
-          style={{ transform: `rotate(-10deg) scale(${started ? 0.5 : 1})` }}
-        >
-          <Image src="/pop up.png" alt="" fill priority sizes="423px" className="object-contain" />
-          <div className="absolute inset-0 flex -translate-x-[10px] items-center justify-center px-[19%]">
-            <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-white text-[6.5cqw] drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)]">
-              Print your receipt!
-            </span>
+      {/* Corner ribbon. Anything centered on the blue band satisfies
+          left% + top% = 66.2% (measured off the trimmed art, excluding the grey
+          folded caps — they jut past the band and skew the centerline low).
+          The band's bottom edge is 90.9%; lower left% slides toward bottom-left. */}
+      <div className="pointer-events-none absolute left-0 top-[72px] z-40 w-[min(430px,36vw)]">
+        <div className="relative aspect-square w-full [container-type:size]">
+          <Image
+            src="/pop-up-heading-1-trim.png"
+            alt=""
+            fill
+            priority
+            sizes="430px"
+            className="object-contain drop-shadow-[0_8px_16px_rgba(40,55,85,0.28)]"
+          />
+          <span
+            className="absolute left-[33.1%] top-[33.1%] w-[104cqw] -translate-x-1/2 -translate-y-1/2 rotate-[-45deg] text-center font-black uppercase leading-[1.05] tracking-tight text-[#103257] text-[10.8cqw] [-webkit-text-stroke:0.6px_#103257]"
+          >
+            Your time
+            <br />
+            is costing you.
+          </span>
+
+          {/* Pop-up sticker — rides the band's bottom-left, fixed size */}
+          <div
+            className="absolute left-[35%] top-[72%] aspect-square w-[47cqw] -translate-x-1/2 -translate-y-1/2 rotate-[-20deg] drop-shadow-[0_7px_12px_rgba(40,55,85,0.38)] [container-type:size]"
+          >
+            <Image src="/pop up.png" alt="" fill priority sizes="203px" className="object-contain" />
+            <div className="absolute inset-0 flex -translate-x-[2.4cqw] items-center justify-center px-[19%]">
+              <span className="text-center font-extrabold uppercase leading-[1.05] tracking-tight text-white text-[6.5cqw] drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)]">
+                Want Your Receipt?
+              </span>
+            </div>
           </div>
         </div>
       </div>
